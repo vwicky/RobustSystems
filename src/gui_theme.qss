@@ -1,0 +1,19 @@
+QWidget { background: #F8F9FA; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; font-size: 13px; color: #2D3436; }
+QGroupBox { border: 1px solid #DDE3EA; border-radius: 8px; margin-top: 12px; padding: 12px; background: #FFFFFF; font-weight: 600; }
+QGroupBox::title { left: 8px; color: #0B6BC7; }
+QPushButton { background: #0B6BC7; color: #FFFFFF; border: none; border-radius: 6px; padding: 7px 14px; font-weight: 600; }
+QPushButton:hover { background: #3A8DDE; }
+QPushButton:disabled { background: #A8B3BF; color: #EAF0F6; }
+QPushButton#dangerButton { background: #D92D20; }
+QPushButton#dangerButton:hover { background: #B42318; }
+QPushButton#dangerButton:pressed { background: #912018; }
+QPushButton#dangerButton:disabled { background: #E4B8B4; color: #FAFAFA; }
+QTabWidget::pane { border: 1px solid #DDE3EA; border-radius: 4px; background: #FFFFFF; }
+QTabBar::tab { padding: 8px 16px; background: #EEF2F7; border: 1px solid #DDE3EA; border-bottom: none; margin-right: 2px; border-top-left-radius: 6px; border-top-right-radius: 6px; }
+QTabBar::tab:selected { background: #FFFFFF; color: #0B6BC7; font-weight: 700; }
+QProgressBar { border: 1px solid #DDE3EA; border-radius: 6px; text-align: center; height: 18px; background: #FFFFFF; }
+QProgressBar::chunk { background: #00A884; border-radius: 5px; }
+QPlainTextEdit { background: #111827; color: #E5E7EB; border-radius: 6px; padding: 8px; font-family: Menlo, Consolas, monospace; }
+QTableWidget { border: 1px solid #DDE3EA; border-radius: 8px; padding: 6px; margin: 2px; gridline-color: #EEF2F7; background: #FFFFFF; }
+QHeaderView::section { background: #F3F7FC; border: 1px solid #E5ECF4; padding: 6px; }
+QLabel { margin: 1px; }
