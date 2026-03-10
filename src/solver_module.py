@@ -15,14 +15,19 @@ class SolverModule:
             result, elapsed_time, error = self.calculator.check_time(func)
             
             if result is not None:
-                value, solving_str = result
+                if len(result) == 3:
+                    value, solving_str, steps = result
+                else:
+                    value, solving_str = result
+                    steps = []
             else:
-                value, solving_str = None, ""
+                value, solving_str, steps = None, "", []
 
             # Return a structured dictionary for the GUI
             solved_values[key] = {
                 "value": value,
                 "latex": solving_str,
+                "steps": steps,
                 "time": elapsed_time,
                 "error": str(error) if error else None,
             }

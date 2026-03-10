@@ -8,6 +8,7 @@ class MetricResult:
     value: Any
     latex: str
     elapsed_seconds: float
+    steps: list[str]
     error: str | None = None
 
 
@@ -20,6 +21,7 @@ def normalize_metrics(payload: dict[str, dict]) -> list[MetricResult]:
                 value=item.get("value"),
                 latex=item.get("latex", ""),
                 elapsed_seconds=float(item.get("time", 0.0)),
+                steps=item.get("steps", []),
                 error=item.get("error"),
             )
         )

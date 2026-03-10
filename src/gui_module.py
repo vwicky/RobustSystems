@@ -20,6 +20,7 @@ from PyQt5.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QTabWidget,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -335,6 +336,35 @@ class GUIModule(QMainWindow):
             layout.addWidget(error_label)
         else:
             layout.addWidget(self._build_value_widget(metric.value))
+
+        if metric.steps:
+            toggle_button = QToolButton()
+            toggle_button.setCheckable(True)
+            toggle_button.setChecked(False)
+            toggle_button.setText("Показати покроковий розв'язок")
+            toggle_button.setArrowType(Qt.RightArrow)
+            toggle_button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+
+            steps_box = QPlainTextEdit()
+            steps_box.setReadOnly(True)
+            steps_box.setPlainText("\n".join(metric.steps))
+            steps_box.setVisible(False)
+            steps_box.setMaximumHeight(180)
+            steps_box.setStyleSheet(
+                "background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; "
+                "padding: 6px; color: #111827;"
+            )
+
+            def toggle_steps(checked: bool) -> None:
+                steps_box.setVisible(checked)
+                toggle_button.setArrowType(Qt.DownArrow if checked else Qt.RightArrow)
+                toggle_button.setText(
+                    "Сховати покроковий розв'язок" if checked else "Показати покроковий розв'язок"
+                )
+
+            toggle_button.toggled.connect(toggle_steps)
+            layout.addWidget(toggle_button)
+            layout.addWidget(steps_box)
 
         return card
 
