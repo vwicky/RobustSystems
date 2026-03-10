@@ -6,6 +6,7 @@ from PyQt5.QtCore import QSettings, Qt
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtGui import QKeySequence
 from PyQt5.QtWidgets import (
+    QFileDialog,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -32,6 +33,7 @@ from matplotlib.figure import Figure
 from src.gui_models import MetricResult, normalize_metrics
 from src.gui_worker import ComputeWorker
 from src.color_themes import build_stylesheet, get_theme_palette, rgba
+from src.report_exporter import export_report_bundle
 from src.solver_module import SolverModule
 
 METRIC_EXPLANATIONS_UA: dict[str, str] = {
@@ -80,6 +82,7 @@ class GUIModule(QMainWindow):
         self._latex_pixmap_cache: dict[str, QPixmap] = {}
         self._task4_info_label: QLabel | None = None
         self._task4_selected_artist = None
+        self._latest_report_payload: dict[str, object] | None = None
 
         self.setWindowTitle(f"Калькулятор надійності — Варіант {self.solver_module.input_data.var_id}")
         self.resize(1200, 900)
@@ -229,9 +232,13 @@ class GUIModule(QMainWindow):
         self.btn_cache.clicked.connect(self.clear_cache)
         self.btn_toggle_logs = QPushButton("Показати/сховати діагностику (Ctrl+D)")
         self.btn_toggle_logs.clicked.connect(self.toggle_diagnostics)
+        self.btn_export_report = QPushButton("Експорт звіту (HTML + PDF)")
+        self.btn_export_report.clicked.connect(self.export_report)
+        self.btn_export_report.setEnabled(False)
 
         controls.addWidget(self.btn_cache)
         controls.addWidget(self.btn_toggle_logs)
+        controls.addWidget(self.btn_export_report)
         controls.addStretch()
         controls.addWidget(self.btn_cancel)
         controls.addWidget(self.btn_compute)
@@ -304,6 +311,43 @@ class GUIModule(QMainWindow):
         else:
             QMessageBox.warning(self, "Кеш", "Не вдалося очистити кеш.")
             self.log("[cache] failed to clear cache")
+
+    def export_report(self) -> None:
+        if not self._latest_report_payload:
+            QMessageBox.information(self, "Звіт", "Спершу виконайте обчислення, щоб сформувати звіт.")
+            return
+
+        var_id = self.solver_module.input_data.var_id
+        default_name = f"report_variant_{var_id}"
+        selected_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Зберегти звіт",
+            default_name,
+            "Report files (*.html *.pdf);;All files (*)",
+        )
+        if not selected_path:
+            return
+
+        try:
+            export_paths = export_report_bundle(
+                base_path=selected_path,
+                input_data=self.solver_module.input_data,
+                task1_payload=self._latest_report_payload["t1"],  # type: ignore[index]
+                task2_payload=self._latest_report_payload["t2"],  # type: ignore[index]
+                task3_figure=self._latest_report_payload["f3"],  # type: ignore[index]
+                task4_figure=self._latest_report_payload["f4"],  # type: ignore[index]
+                explanations=METRIC_EXPLANATIONS_UA,
+            )
+            self.log(f"[report] HTML exported: {export_paths.html_path}")
+            self.log(f"[report] PDF exported: {export_paths.pdf_path}")
+            QMessageBox.information(
+                self,
+                "Звіт збережено",
+                f"Звіт сформовано успішно.\n\nHTML: {export_paths.html_path}\nPDF: {export_paths.pdf_path}",
+            )
+        except Exception as exc:
+            self.log(f"[report] export failed: {exc}")
+            QMessageBox.critical(self, "Помилка експорту", str(exc))
 
     def _build_plot_canvas(self, x_values: list[float], y_values: list[float], x_labels: list[str] | None = None) -> FigureCanvas:
         fig = Figure(figsize=(5.0, 2.7), dpi=120)
@@ -569,8 +613,10 @@ class GUIModule(QMainWindow):
     def on_computation_finished(self, t1: dict, t2: dict, f3, f4) -> None:
         self.btn_compute.setEnabled(True)
         self.btn_cancel.setEnabled(False)
+        self.btn_export_report.setEnabled(True)
         self.status_label.setText("Завершено")
         self.log("[worker] completed successfully")
+        self._latest_report_payload = {"t1": t1, "t2": t2, "f3": f3, "f4": f4}
 
         self._populate_result_layout(self.task1_layout, t1)
         self._populate_result_layout(self.task2_layout, t2)

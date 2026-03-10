@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import QApplication
 from src.color_themes import get_available_themes
 from src.solver_module import SolverModule
 from src.gui_module import GUIModule
-from src.input_dataclass import InputData, var_6
+from src.input_dataclass import InputData, var_6, var_17
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="RobustSmartSystems GUI")
@@ -19,9 +19,9 @@ def main() -> None:
 
     app = QApplication(sys.argv)
     
-    input_data_6: InputData = var_6
+    input_data_17: InputData = var_17
 
-    solver_module = SolverModule(input_data_6)
+    solver_module = SolverModule(input_data_17)
     gui_module = GUIModule(solver_module, theme_name=args.theme)
     gui_module.run()
     

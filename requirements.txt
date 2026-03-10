@@ -1,8 +1,15 @@
+# Основний науково-обчислювальний стек
 numpy
 scipy
 sympy
+
+# Візуалізація та графіки
 matplotlib
-tqdm
 networkx
+
+# Інтерфейс застосунку
 PyQt5
+tqdm
+
+# Тестування
 pytest
