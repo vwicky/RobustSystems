@@ -103,3 +103,16 @@ def get_T3W_functions():
         return T_3W
 
     return compute_T3W_numpy, get_T3W_sympy
+
+
+def get_T_Gamma_3W_sympy():
+    """
+    Symbolic formula for T_Γ3W(k): mean time to failure with redundancy.
+    T_Gamma_3W(k) = Sum(T_3W(x_3), (x_3, k, a_1 * a_2 * a_3))
+    Returns a SymPy Eq for display/LaTeX.
+    """
+    k, x_3, a_1, a_2, a_3 = sp.symbols("k x_3 a_1 a_2 a_3", integer=True, nonnegative=True)
+    T_Gamma_3W = sp.Function("T_{\\Gamma 3W}")
+    T_3W = sp.Function("T_{3W}")
+    right_side = sp.Sum(T_3W(x_3), (x_3, k, a_1 * a_2 * a_3))
+    return sp.Eq(T_Gamma_3W(k), right_side)

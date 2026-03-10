@@ -9,7 +9,7 @@ from scipy import integrate
 
 from src.formulas.p3w import get_P3W_functions
 from src.formulas.kh3w import get_K_G3W_functions
-from src.formulas.t3w import get_T3W_functions
+from src.formulas.t3w import get_T3W_functions, get_T_Gamma_3W_sympy
 from src.formulas.a3w import get_a3W_functions
 
 from src.cache import Cache
@@ -319,8 +319,9 @@ class SolverCalculator:
         result_sum = math.fsum(valid_terms)
 
         steps = self._steps_for_t_gamma(result_sum, valid_terms)
-        self.cache.add("T_Г3W", (result_sum, "T_{\\Gamma 3W}", steps))
-        return result_sum, "T_{\\Gamma 3W}", steps
+        latex_str = sympy.latex(get_T_Gamma_3W_sympy())
+        self.cache.add("T_Г3W", (result_sum, latex_str, steps))
+        return result_sum, latex_str, steps
     
     def find_Q_3W(self, use_cache: bool = True) -> tuple[float, str, list[str]]:
         """ 
