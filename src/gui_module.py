@@ -1,11 +1,9 @@
 import io
-from pathlib import Path
 
 from PyQt5.QtCore import QSettings, Qt
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtGui import QKeySequence
 from PyQt5.QtWidgets import (
-    QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -31,6 +29,7 @@ from matplotlib.figure import Figure
 
 from src.gui_models import MetricResult, normalize_metrics
 from src.gui_worker import ComputeWorker
+from src.color_themes import build_stylesheet, get_theme_palette, rgba
 from src.solver_module import SolverModule
 
 METRIC_EXPLANATIONS_UA: dict[str, str] = {
@@ -70,9 +69,10 @@ METRIC_EXPLANATIONS_UA: dict[str, str] = {
 
 
 class GUIModule(QMainWindow):
-    def __init__(self, solver_module: SolverModule):
+    def __init__(self, solver_module: SolverModule, theme_name: str = "light"):
         super().__init__()
         self.solver_module = solver_module
+        self.theme_name = theme_name
         self.settings = QSettings("RobustSmartSystems", "ReliabilitySolver")
         self.worker: ComputeWorker | None = None
         self._latex_pixmap_cache: dict[str, QPixmap] = {}
@@ -86,8 +86,8 @@ class GUIModule(QMainWindow):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         root_layout = QVBoxLayout(self.central_widget)
-        root_layout.setContentsMargins(10, 10, 10, 10)
-        root_layout.setSpacing(10)
+        root_layout.setContentsMargins(14, 14, 14, 14)
+        root_layout.setSpacing(12)
 
         self.splitter = QSplitter(Qt.Vertical)
         root_layout.addWidget(self.splitter)
@@ -95,7 +95,7 @@ class GUIModule(QMainWindow):
         top_widget = QWidget()
         top_layout = QVBoxLayout(top_widget)
         top_layout.setContentsMargins(0, 0, 0, 0)
-        top_layout.setSpacing(8)
+        top_layout.setSpacing(10)
 
         self.tabs = QTabWidget()
         top_layout.addWidget(self.tabs)
@@ -113,8 +113,11 @@ class GUIModule(QMainWindow):
         self.restore_ui_state()
 
     def apply_theme(self) -> None:
-        theme_path = Path(__file__).with_name("gui_theme.qss")
-        self.setStyleSheet(theme_path.read_text(encoding="utf-8"))
+        self.setStyleSheet(build_stylesheet(self.theme_name))
+
+    @property
+    def _palette(self):
+        return get_theme_palette(self.theme_name)
 
     def setup_shortcuts(self) -> None:
         QShortcut(QKeySequence("Ctrl+R"), self, activated=self.start_computation)
@@ -151,9 +154,37 @@ class GUIModule(QMainWindow):
         rayleigh_variants = {1, 2, 3, 7, 8, 9, 13, 14, 15, 19, 20, 21, 25, 26, 27, 31, 32, 33, 37, 38, 39}
         return "Розподіл Релея" if self.solver_module.input_data.var_id in rayleigh_variants else "Розподіл Вейбула"
 
+    @staticmethod
+    def _create_param_row(icon_text: str, label: str, value: str) -> QWidget:
+        row_widget = QWidget()
+        row_widget.setObjectName("paramRow")
+        row_layout = QHBoxLayout(row_widget)
+        row_layout.setContentsMargins(12, 8, 12, 8)
+        row_layout.setSpacing(12)
+
+        icon_label = QLabel(icon_text)
+        icon_label.setObjectName("paramIcon")
+        icon_label.setAlignment(Qt.AlignCenter)
+        icon_label.setFixedSize(30, 30)
+
+        key_label = QLabel(label)
+        key_label.setObjectName("paramKey")
+        key_label.setMinimumWidth(230)
+
+        value_label = QLabel(value)
+        value_label.setObjectName("paramValue")
+        value_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+
+        row_layout.addWidget(icon_label)
+        row_layout.addWidget(key_label)
+        row_layout.addWidget(value_label, 1)
+        return row_widget
+
     def init_input_tab(self) -> None:
         self.input_tab = QWidget()
         layout = QVBoxLayout(self.input_tab)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(12)
 
         assignment_box = QGroupBox("Інформація про завдання")
         assignment_layout = QVBoxLayout(assignment_box)
@@ -169,16 +200,23 @@ class GUIModule(QMainWindow):
 
         data = self.solver_module.input_data
         params_box = QGroupBox("Вхідні параметри системи")
-        params_layout = QFormLayout(params_box)
-        params_layout.addRow("ID варіанта:", QLabel(str(data.var_id)))
-        params_layout.addRow("Компоненти (a1,a2,a3):", QLabel(f"{data.a1}, {data.a2}, {data.a3}"))
-        params_layout.addRow("Мінімум справних (k):", QLabel(str(data.k)))
-        params_layout.addRow("Час (t):", QLabel(f"{data.t} год"))
-        params_layout.addRow("Лямбда:", QLabel(f"{data.lambda0}, {data.lambda1}, {data.lambda2}, {data.lambda3}"))
-        params_layout.addRow("Бета:", QLabel(str(data.beta)))
+        params_layout = QVBoxLayout(params_box)
+        params_layout.setContentsMargins(8, 12, 8, 8)
+        params_layout.setSpacing(8)
+        params_layout.addWidget(self._create_param_row("ID", "ID варіанта", str(data.var_id)))
+        params_layout.addWidget(
+            self._create_param_row("A", "Компоненти (a1, a2, a3)", f"{data.a1}, {data.a2}, {data.a3}")
+        )
+        params_layout.addWidget(self._create_param_row("K", "Мінімум справних (k)", str(data.k)))
+        params_layout.addWidget(self._create_param_row("T", "Час (t)", f"{data.t} год"))
+        params_layout.addWidget(
+            self._create_param_row("L", "Лямбда", f"{data.lambda0}, {data.lambda1}, {data.lambda2}, {data.lambda3}")
+        )
+        params_layout.addWidget(self._create_param_row("B", "Бета", str(data.beta)))
         layout.addWidget(params_box)
 
         controls = QHBoxLayout()
+        controls.setSpacing(10)
         self.btn_compute = QPushButton("Обчислити результати (Ctrl+R)")
         self.btn_compute.clicked.connect(self.start_computation)
         self.btn_cancel = QPushButton("Скасувати (Ctrl+.)")
@@ -198,6 +236,7 @@ class GUIModule(QMainWindow):
         layout.addLayout(controls)
 
         progress_row = QHBoxLayout()
+        progress_row.setSpacing(10)
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
         self.status_label = QLabel("Очікування")
@@ -268,7 +307,7 @@ class GUIModule(QMainWindow):
     def _build_value_widget(value) -> QWidget:
         if isinstance(value, (int, float)):
             label = QLabel(f"{value:.6g}")
-            label.setStyleSheet("font: 700 20px 'Consolas'; color: #0F4C81;")
+            label.setStyleSheet("font: 700 20px 'Consolas';")
             return label
 
         if isinstance(value, (list, tuple)):
@@ -305,12 +344,12 @@ class GUIModule(QMainWindow):
         layout.setSpacing(8)
 
         time_label = QLabel(f"Час обчислення: {metric.elapsed_seconds:.4f} с")
-        time_label.setStyleSheet("color: #6B7280;")
+        time_label.setStyleSheet(f"color: {rgba(self._palette.text, 0.65)};")
         layout.addWidget(time_label)
 
         if metric.latex:
             formula_title = QLabel("Формула")
-            formula_title.setStyleSheet("font-weight: 700; color: #0B6BC7;")
+            formula_title.setStyleSheet(f"font-weight: 700; color: {self._palette.accent};")
             formula_value = self._build_latex_widget(metric.latex)
             layout.addWidget(formula_title)
             layout.addWidget(formula_value)
@@ -318,21 +357,27 @@ class GUIModule(QMainWindow):
         explanation = METRIC_EXPLANATIONS_UA.get(metric.name)
         if explanation:
             explanation_title = QLabel("Пояснення")
-            explanation_title.setStyleSheet("font-weight: 700; color: #0B6BC7;")
+            explanation_title.setStyleSheet(f"font-weight: 700; color: {self._palette.accent};")
             explanation_body = QLabel(explanation)
             explanation_body.setWordWrap(True)
-            explanation_body.setStyleSheet("background: #F8FAFC; border-left: 3px solid #94A3B8; padding: 8px;")
+            explanation_body.setStyleSheet(
+                f"background: {rgba(self._palette.card_bg, 0.78)}; "
+                f"border-left: 3px solid {rgba(self._palette.border, 0.95)}; padding: 8px;"
+            )
             layout.addWidget(explanation_title)
             layout.addWidget(explanation_body)
 
         result_title = QLabel("Результат")
-        result_title.setStyleSheet("font-weight: 700; color: #0B6BC7;")
+        result_title.setStyleSheet(f"font-weight: 700; color: {self._palette.accent};")
         layout.addWidget(result_title)
 
         if metric.error:
             error_label = QLabel(metric.error)
             error_label.setWordWrap(True)
-            error_label.setStyleSheet("background: #FFF1F0; border-left: 3px solid #F5222D; color: #A8071A; padding: 8px;")
+            error_label.setStyleSheet(
+                f"background: {rgba(self._palette.danger, 0.16)}; "
+                f"border-left: 3px solid {self._palette.danger}; color: {self._palette.danger_pressed}; padding: 8px;"
+            )
             layout.addWidget(error_label)
         else:
             layout.addWidget(self._build_value_widget(metric.value))
@@ -351,8 +396,9 @@ class GUIModule(QMainWindow):
             steps_box.setVisible(False)
             steps_box.setMaximumHeight(180)
             steps_box.setStyleSheet(
-                "background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; "
-                "padding: 6px; color: #111827;"
+                f"background: {rgba(self._palette.card_bg, 0.72)}; "
+                f"border: 1px solid {rgba(self._palette.border, 0.9)}; border-radius: 6px; "
+                f"padding: 6px; color: {self._palette.text};"
             )
 
             def toggle_steps(checked: bool) -> None:
@@ -375,7 +421,10 @@ class GUIModule(QMainWindow):
         container_layout.setSpacing(4)
 
         img_label = QLabel()
-        img_label.setStyleSheet("background: #EFF6FF; border-left: 3px solid #0B6BC7; padding: 8px;")
+        img_label.setStyleSheet(
+            f"background: {rgba(self._palette.card_bg, 0.72)}; "
+            f"border-left: 3px solid {self._palette.accent}; padding: 8px;"
+        )
         img_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
 
         pixmap = self._render_latex_pixmap(latex_str)
@@ -456,7 +505,9 @@ class GUIModule(QMainWindow):
         self._task4_info_label = QLabel("Інтерактивність: клікніть вузол для деталей, колесо миші для масштабування.")
         self._task4_info_label.setWordWrap(True)
         self._task4_info_label.setStyleSheet(
-            "background: #F8FAFC; border: 1px solid #DDE3EA; border-radius: 6px; padding: 8px; color: #334155;"
+            f"background: {rgba(self._palette.card_bg, 0.76)}; "
+            f"border: 1px solid {rgba(self._palette.border, 0.9)}; border-radius: 6px; "
+            f"padding: 8px; color: {self._palette.text};"
         )
         self.task4_layout.addWidget(self._task4_info_label)
         self.task4_layout.addWidget(toolbar4)
