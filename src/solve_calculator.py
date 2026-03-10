@@ -317,11 +317,6 @@ class SolverCalculator:
             raise ValueError("T_Г3W cannot be computed: no finite non-negative T_3W terms.")
 
         result_sum = math.fsum(valid_terms)
-        if result_sum > 1e18:
-            raise ValueError(
-                "T_Г3W is numerically unstable (unrealistically large). "
-                "Try reducing parameter ranges or using a smaller model."
-            )
 
         steps = self._steps_for_t_gamma(result_sum, valid_terms)
         self.cache.add("T_Г3W", (result_sum, "T_{\\Gamma 3W}", steps))

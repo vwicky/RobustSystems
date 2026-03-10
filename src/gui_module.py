@@ -1,5 +1,7 @@
 import io
+import math
 
+import seaborn as sns
 from PyQt5.QtCore import QSettings, Qt
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtGui import QKeySequence
@@ -303,10 +305,55 @@ class GUIModule(QMainWindow):
             QMessageBox.warning(self, "Кеш", "Не вдалося очистити кеш.")
             self.log("[cache] failed to clear cache")
 
+    def _build_plot_canvas(self, x_values: list[float], y_values: list[float], x_labels: list[str] | None = None) -> FigureCanvas:
+        fig = Figure(figsize=(5.0, 2.7), dpi=120)
+        ax = fig.add_subplot(111)
+        sns.scatterplot(x=x_values, y=y_values, ax=ax, color=self._palette.accent, s=34, alpha=0.9, legend=False)
+        ax.grid(True, alpha=0.25, linestyle="--", linewidth=0.7)
+        ax.set_xlabel("Індекс")
+        ax.set_ylabel("Значення")
+
+        nonzero_abs = [abs(v) for v in y_values if v not in (0.0, -0.0)]
+        if nonzero_abs:
+            min_nonzero = min(nonzero_abs)
+            max_nonzero = max(nonzero_abs)
+            if min_nonzero > 0 and (max_nonzero / min_nonzero) >= 1e4:
+                # Huge dynamic ranges flatten medium values on linear axis.
+                # symlog keeps zeros valid while making e.g. 388 vs 1e85 distinguishable.
+                ax.set_yscale("symlog", linthresh=max(min_nonzero * 10.0, 1e-6))
+        if y_values and min(y_values) >= 0:
+            ax.set_ylim(bottom=0)
+
+        if x_labels:
+            ax.set_xticks(x_values)
+            ax.set_xticklabels(x_labels, rotation=0, fontsize=8)
+
+        fig.tight_layout()
+        canvas = FigureCanvas(fig)
+        canvas.setMinimumHeight(240)
+        canvas.setMinimumWidth(380)
+        return canvas
+
     @staticmethod
-    def _build_value_widget(value) -> QWidget:
-        if isinstance(value, (int, float)):
-            label = QLabel(f"{value:.6g}")
+    def _to_numeric(value) -> float | None:
+        if isinstance(value, bool):
+            return None
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            return None
+        return numeric if math.isfinite(numeric) else None
+
+    def _format_value(self, value) -> str:
+        numeric = self._to_numeric(value)
+        if numeric is None:
+            return str(value)
+        return f"{numeric:.6g}"
+
+    def _build_value_widget(self, value) -> QWidget:
+        scalar_numeric = self._to_numeric(value)
+        if scalar_numeric is not None:
+            label = QLabel(f"{scalar_numeric:.6g}")
             label.setStyleSheet("font: 700 20px 'Consolas';")
             return label
 
@@ -314,23 +361,60 @@ class GUIModule(QMainWindow):
             table = QTableWidget(len(value), 2)
             table.setHorizontalHeaderLabels(["Індекс", "Значення"])
             table.verticalHeader().setVisible(False)
+            x_values: list[float] = []
+            y_values: list[float] = []
             for i, item in enumerate(value):
                 table.setItem(i, 0, QTableWidgetItem(str(i)))
-                item_text = f"{item:.6g}" if isinstance(item, float) else str(item)
+                item_text = self._format_value(item)
                 table.setItem(i, 1, QTableWidgetItem(item_text))
+                numeric_item = self._to_numeric(item)
+                if numeric_item is not None:
+                    x_values.append(float(i))
+                    y_values.append(numeric_item)
             table.setMaximumHeight(280)
             table.resizeColumnsToContents()
+
+            if len(y_values) >= 2:
+                container = QWidget()
+                container_layout = QHBoxLayout(container)
+                container_layout.setContentsMargins(0, 0, 0, 0)
+                container_layout.setSpacing(12)
+                container_layout.addWidget(table, 1)
+                container_layout.addWidget(self._build_plot_canvas(x_values, y_values), 2)
+                return container
             return table
 
         if isinstance(value, dict):
             table = QTableWidget(len(value), 2)
             table.setHorizontalHeaderLabels(["Ключ", "Значення"])
             table.verticalHeader().setVisible(False)
+            x_values: list[float] = []
+            y_values: list[float] = []
+            x_labels: list[str] = []
             for row, (k, v) in enumerate(value.items()):
                 table.setItem(row, 0, QTableWidgetItem(str(k)))
-                value_text = f"{v:.6g}" if isinstance(v, float) else str(v)
+                value_text = self._format_value(v)
                 table.setItem(row, 1, QTableWidgetItem(value_text))
+                numeric_value = self._to_numeric(v)
+                if numeric_value is not None:
+                    y_values.append(numeric_value)
+                    numeric_key = self._to_numeric(k)
+                    if numeric_key is not None:
+                        x_values.append(numeric_key)
+                        x_labels.append(str(k))
+                    else:
+                        x_values.append(float(row))
+                        x_labels.append(str(k))
             table.resizeColumnsToContents()
+
+            if len(y_values) >= 2:
+                container = QWidget()
+                container_layout = QHBoxLayout(container)
+                container_layout.setContentsMargins(0, 0, 0, 0)
+                container_layout.setSpacing(12)
+                container_layout.addWidget(table, 1)
+                container_layout.addWidget(self._build_plot_canvas(x_values, y_values, x_labels=x_labels), 2)
+                return container
             return table
 
         fallback = QLabel(str(value))

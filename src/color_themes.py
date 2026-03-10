@@ -121,6 +121,52 @@ THEMES: dict[str, ThemePalette] = {
         header_bg="#DAD7CD",  # Dust Grey
         header_border="#588157",  # Fern
     ),
+    "onyx": ThemePalette(
+        app_bg="#171614",  # Onyx
+        text="#9A8873",  # Dusty Taupe
+        card_bg="#3A2618",  # Dark Coffee
+        border="#37423D",  # Iron Grey
+        accent="#754043",  # Bitter Chocolate
+        button_hover="#9A8873",  # Dusty Taupe
+        button_disabled_bg="#37423D",  # Iron Grey
+        button_disabled_text="#9A8873",  # Dusty Taupe
+        danger="#754043",  # Bitter Chocolate
+        danger_hover="#3A2618",  # Dark Coffee
+        danger_pressed="#171614",  # Onyx
+        danger_disabled_bg="#37423D",  # Iron Grey
+        danger_disabled_text="#9A8873",  # Dusty Taupe
+        tab_bg="#3A2618",  # Dark Coffee
+        tab_selected_bg="#171614",  # Onyx
+        progress_chunk="#754043",  # Bitter Chocolate
+        log_bg="#171614",  # Onyx
+        log_text="#9A8873",  # Dusty Taupe
+        table_grid="#37423D",  # Iron Grey
+        header_bg="#3A2618",  # Dark Coffee
+        header_border="#37423D",  # Iron Grey
+    ),
+    "tomato": ThemePalette(
+        app_bg="#E8E9EB",  # Platinum
+        text="#313638",  # Gunmetal
+        card_bg="#E0DFD5",  # Soft Linen
+        border="#F09D51",  # Sandy Brown
+        accent="#F06543",  # Tomato
+        button_hover="#F09D51",  # Sandy Brown
+        button_disabled_bg="#E0DFD5",  # Soft Linen
+        button_disabled_text="#313638",  # Gunmetal
+        danger="#F06543",  # Tomato
+        danger_hover="#313638",  # Gunmetal
+        danger_pressed="#313638",  # Gunmetal
+        danger_disabled_bg="#E0DFD5",  # Soft Linen
+        danger_disabled_text="#313638",  # Gunmetal
+        tab_bg="#E0DFD5",  # Soft Linen
+        tab_selected_bg="#E8E9EB",  # Platinum
+        progress_chunk="#F06543",  # Tomato
+        log_bg="#313638",  # Gunmetal
+        log_text="#E8E9EB",  # Platinum
+        table_grid="#F09D51",  # Sandy Brown
+        header_bg="#E8E9EB",  # Platinum
+        header_border="#F09D51",  # Sandy Brown
+    ),
 }
 
 
@@ -148,7 +194,7 @@ def rgba(hex_color: str, alpha: float) -> str:
 def build_stylesheet(theme_name: str) -> str:
     palette = get_theme_palette(theme_name)
     return f"""
-QWidget {{ background: {palette.app_bg}; font-family: "Noto Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif; font-size: 14px; color: {palette.text}; }}
+QWidget {{ background: {palette.app_bg}; font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; font-size: 14px; color: {palette.text}; }}
 QGroupBox {{ border: 1px solid {rgba(palette.border, 0.80)}; border-radius: 10px; margin-top: 14px; padding: 14px; background: {rgba(palette.card_bg, 0.72)}; font-weight: 600; }}
 QGroupBox::title {{ left: 8px; color: {palette.accent}; }}
 QPushButton {{ background: {palette.accent}; color: #FFFFFF; border: none; border-radius: 7px; padding: 9px 16px; font-weight: 600; }}
