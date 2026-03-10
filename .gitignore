@@ -14,4 +14,4 @@ env/
 .DS_Store
 
 # Project runtime cache
-compute_cache/*/cache.json
+# compute_cache/*/cache.json
