@@ -1,5 +1,6 @@
 import io
 import math
+import textwrap
 
 import seaborn as sns
 from PyQt5.QtCore import QSettings, Qt
@@ -349,24 +350,46 @@ class GUIModule(QMainWindow):
             self.log(f"[report] export failed: {exc}")
             QMessageBox.critical(self, "Помилка експорту", str(exc))
 
-    def _build_plot_canvas(self, x_values: list[float], y_values: list[float], x_labels: list[str] | None = None) -> FigureCanvas:
+    def _build_plot_canvas(
+        self,
+        x_values: list[float],
+        y_values: list[float],
+        x_labels: list[str] | None = None,
+        x_axis_label: str = "Індекс",
+        y_axis_label: str = "Значення",
+        plot_kind: str = "scatter",
+    ) -> FigureCanvas:
         fig = Figure(figsize=(5.0, 2.7), dpi=120)
         ax = fig.add_subplot(111)
-        sns.scatterplot(x=x_values, y=y_values, ax=ax, color=self._palette.accent, s=34, alpha=0.9, legend=False)
+        if plot_kind == "histogram":
+            # Histogram-like view for metric profiles: value on X, index/key on Y.
+            ax.barh(y_values, x_values, color=self._palette.accent, alpha=0.85, height=0.8)
+        else:
+            sns.scatterplot(x=x_values, y=y_values, ax=ax, color=self._palette.accent, s=34, alpha=0.9, legend=False)
         ax.grid(True, alpha=0.25, linestyle="--", linewidth=0.7)
-        ax.set_xlabel("Індекс")
-        ax.set_ylabel("Значення")
+        ax.set_xlabel(self._wrap_axis_label(x_axis_label), fontsize=9)
+        ax.set_ylabel(self._wrap_axis_label(y_axis_label), fontsize=9)
 
-        nonzero_abs = [abs(v) for v in y_values if v not in (0.0, -0.0)]
-        if nonzero_abs:
-            min_nonzero = min(nonzero_abs)
-            max_nonzero = max(nonzero_abs)
-            if min_nonzero > 0 and (max_nonzero / min_nonzero) >= 1e4:
-                # Huge dynamic ranges flatten medium values on linear axis.
-                # symlog keeps zeros valid while making e.g. 388 vs 1e85 distinguishable.
-                ax.set_yscale("symlog", linthresh=max(min_nonzero * 10.0, 1e-6))
-        if y_values and min(y_values) >= 0:
-            ax.set_ylim(bottom=0)
+        if plot_kind == "histogram":
+            nonzero_abs = [abs(v) for v in x_values if v not in (0.0, -0.0)]
+            if nonzero_abs:
+                min_nonzero = min(nonzero_abs)
+                max_nonzero = max(nonzero_abs)
+                if min_nonzero > 0 and (max_nonzero / min_nonzero) >= 1e4:
+                    ax.set_xscale("symlog", linthresh=max(min_nonzero * 10.0, 1e-6))
+            if x_values and min(x_values) >= 0:
+                ax.set_xlim(left=0)
+        else:
+            nonzero_abs = [abs(v) for v in y_values if v not in (0.0, -0.0)]
+            if nonzero_abs:
+                min_nonzero = min(nonzero_abs)
+                max_nonzero = max(nonzero_abs)
+                if min_nonzero > 0 and (max_nonzero / min_nonzero) >= 1e4:
+                    # Huge dynamic ranges flatten medium values on linear axis.
+                    # symlog keeps zeros valid while making e.g. 388 vs 1e85 distinguishable.
+                    ax.set_yscale("symlog", linthresh=max(min_nonzero * 10.0, 1e-6))
+            if y_values and min(y_values) >= 0:
+                ax.set_ylim(bottom=0)
 
         if x_labels:
             ax.set_xticks(x_values)
@@ -377,6 +400,14 @@ class GUIModule(QMainWindow):
         canvas.setMinimumHeight(240)
         canvas.setMinimumWidth(380)
         return canvas
+
+    @staticmethod
+    def _wrap_axis_label(label: str, width: int = 20) -> str:
+        cleaned = label.strip()
+        if len(cleaned) <= width or " " not in cleaned:
+            return cleaned
+        # Wrap long labels but never truncate text.
+        return textwrap.fill(cleaned, width=width, break_long_words=False)
 
     @staticmethod
     def _to_numeric(value) -> float | None:
@@ -394,7 +425,21 @@ class GUIModule(QMainWindow):
             return str(value)
         return f"{numeric:.6g}"
 
-    def _build_value_widget(self, value) -> QWidget:
+    def _build_value_widget(self, value, metric_name: str | None = None) -> QWidget:
+        is_p3w_metric = metric_name == "P_3W"
+        is_t3w_metric = metric_name == "T_3W"
+        if is_p3w_metric:
+            table_x_label = "Значення X3"
+            table_y_label = "Ймовірності безвідмовної роботи системи"
+        elif is_t3w_metric:
+            table_x_label = "Значення X3"
+            table_y_label = "Середній час роботи системи"
+        else:
+            table_x_label = "Індекс"
+            table_y_label = "Значення"
+
+        default_x_axis_label = table_x_label
+        default_y_axis_label = table_y_label
         scalar_numeric = self._to_numeric(value)
         if scalar_numeric is not None:
             label = QLabel(f"{scalar_numeric:.6g}")
@@ -403,7 +448,7 @@ class GUIModule(QMainWindow):
 
         if isinstance(value, (list, tuple)):
             table = QTableWidget(len(value), 2)
-            table.setHorizontalHeaderLabels(["Індекс", "Значення"])
+            table.setHorizontalHeaderLabels([table_x_label, table_y_label])
             table.verticalHeader().setVisible(False)
             x_values: list[float] = []
             y_values: list[float] = []
@@ -419,18 +464,32 @@ class GUIModule(QMainWindow):
             table.resizeColumnsToContents()
 
             if len(y_values) >= 2:
+                plot_x_values = y_values if is_t3w_metric else x_values
+                plot_y_values = x_values if is_t3w_metric else y_values
+                x_axis_label = "Середній час роботи системи" if is_t3w_metric else default_x_axis_label
+                y_axis_label = "Значення X3" if is_t3w_metric else default_y_axis_label
+                plot_kind = "histogram" if is_t3w_metric else "scatter"
                 container = QWidget()
                 container_layout = QHBoxLayout(container)
                 container_layout.setContentsMargins(0, 0, 0, 0)
                 container_layout.setSpacing(12)
                 container_layout.addWidget(table, 1)
-                container_layout.addWidget(self._build_plot_canvas(x_values, y_values), 2)
+                container_layout.addWidget(
+                    self._build_plot_canvas(
+                        plot_x_values,
+                        plot_y_values,
+                        x_axis_label=x_axis_label,
+                        y_axis_label=y_axis_label,
+                        plot_kind=plot_kind,
+                    ),
+                    2,
+                )
                 return container
             return table
 
         if isinstance(value, dict):
             table = QTableWidget(len(value), 2)
-            table.setHorizontalHeaderLabels(["Ключ", "Значення"])
+            table.setHorizontalHeaderLabels([table_x_label, table_y_label])
             table.verticalHeader().setVisible(False)
             x_values: list[float] = []
             y_values: list[float] = []
@@ -452,12 +511,27 @@ class GUIModule(QMainWindow):
             table.resizeColumnsToContents()
 
             if len(y_values) >= 2:
+                plot_x_values = y_values if is_t3w_metric else x_values
+                plot_y_values = x_values if is_t3w_metric else y_values
+                x_axis_label = "Середній час роботи системи" if is_t3w_metric else default_x_axis_label
+                y_axis_label = "Значення X3" if is_t3w_metric else default_y_axis_label
+                plot_kind = "histogram" if is_t3w_metric else "scatter"
                 container = QWidget()
                 container_layout = QHBoxLayout(container)
                 container_layout.setContentsMargins(0, 0, 0, 0)
                 container_layout.setSpacing(12)
                 container_layout.addWidget(table, 1)
-                container_layout.addWidget(self._build_plot_canvas(x_values, y_values, x_labels=x_labels), 2)
+                container_layout.addWidget(
+                    self._build_plot_canvas(
+                        plot_x_values,
+                        plot_y_values,
+                        x_labels=x_labels,
+                        x_axis_label=x_axis_label,
+                        y_axis_label=y_axis_label,
+                        plot_kind=plot_kind,
+                    ),
+                    2,
+                )
                 return container
             return table
 
@@ -508,7 +582,7 @@ class GUIModule(QMainWindow):
             )
             layout.addWidget(error_label)
         else:
-            layout.addWidget(self._build_value_widget(metric.value))
+            layout.addWidget(self._build_value_widget(metric.value, metric.name))
 
         if metric.steps:
             toggle_button = QToolButton()
