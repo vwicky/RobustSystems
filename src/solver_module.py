@@ -84,7 +84,7 @@ class SolverModule:
             requested_plots = ["Q_3W", "a_3W"]
 
         num_plots = len(requested_plots)
-        t_vals = np.linspace(0.1, 1000, 1200)
+        t_vals = np.linspace(0.1, 500, 1200)
 
         # 4. Calculate initial data instantly
         q_init = q_3w_vec(t_vals, a1_init, k1, l1, b1, a2_init, k2, l2, b2, a3_init, k3_init, l3_init, b3_init, l0_init)

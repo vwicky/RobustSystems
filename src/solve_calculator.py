@@ -22,6 +22,9 @@ from src.cache import Cache
 """
 
 class SolverCalculator:
+    _T3W_CACHE_KEY = "T_3W_v2"
+    _T_GAMMA_CACHE_KEY = "T_Г3W_v2"
+
     def __init__(self, input_data: InputData):
         self.input_data = input_data
         self.cache = Cache(var_id=self.input_data.var_id)
@@ -247,7 +250,7 @@ class SolverCalculator:
         """ 
         Computes a list of T_3W(x3, t3) for x3 in [0, a1 * a2 * a3]
         """
-        cached_result = self.check_in_cache("T_3W")
+        cached_result = self.check_in_cache(self._T3W_CACHE_KEY)
         if cached_result and use_cache:
             cached_values, cached_latex, cached_steps = self._with_steps(cached_result, self._steps_for_t3w)
             if isinstance(cached_values, list) and all(
@@ -255,7 +258,7 @@ class SolverCalculator:
             ):
                 sanitized_values = [max(float(v), 0.0) for v in cached_values]
                 if sanitized_values != cached_values:
-                    self.cache.add("T_3W", (sanitized_values, cached_latex, cached_steps))
+                    self.cache.add(self._T3W_CACHE_KEY, (sanitized_values, cached_latex, cached_steps))
                 return sanitized_values, cached_latex, cached_steps
 
         p = self.input_data
@@ -280,14 +283,14 @@ class SolverCalculator:
 
         latex_str = sympy.latex(visual_func())
         steps = self._steps_for_t3w(results)
-        self.cache.add("T_3W", (results, latex_str, steps))
+        self.cache.add(self._T3W_CACHE_KEY, (results, latex_str, steps))
         return results, latex_str, steps
     
     def find_T_Г3W(self, use_cache: bool = True) -> tuple[float, str, list[str]]:
         """ 
         NOTE: Requires heavy recompute of T_3W - cache implemented
         """
-        cached_result = self.check_in_cache("T_Г3W")
+        cached_result = self.check_in_cache(self._T_GAMMA_CACHE_KEY)
         if cached_result and use_cache:
             cached_value, cached_latex, cached_steps = self._with_steps(cached_result, self._steps_for_t_gamma)
             if (
@@ -299,7 +302,7 @@ class SolverCalculator:
         
         p = self.input_data
 
-        t3w_data = self.check_in_cache("T_3W")
+        t3w_data = self.check_in_cache(self._T3W_CACHE_KEY)
         if t3w_data:
             t3w, _, _ = self._with_steps(t3w_data, self._steps_for_t3w)
         else:
@@ -320,7 +323,7 @@ class SolverCalculator:
 
         steps = self._steps_for_t_gamma(result_sum, valid_terms)
         latex_str = sympy.latex(get_T_Gamma_3W_sympy())
-        self.cache.add("T_Г3W", (result_sum, latex_str, steps))
+        self.cache.add(self._T_GAMMA_CACHE_KEY, (result_sum, latex_str, steps))
         return result_sum, latex_str, steps
     
     def find_Q_3W(self, use_cache: bool = True) -> tuple[float, str, list[str]]:
@@ -469,12 +472,13 @@ class SolverCalculator:
             f"1) Обчислюється T_3W(x3) для x3=0..{max_x3}.",
             f"2) Проміжний крок: N=a1*a2*a3={p.a1}*{p.a2}*{p.a3}={max_x3}.",
             f"3) Обчислено {len(values)} проміжних значень T_3W(x3).",
-            "4) Для кожного x3 рахується багатовимірна сума; нижче показано конкретні seed-обчислення (j1=j2=j3=0) і повний результат.",
-            "5) Деталізація для вибраних x3:",
+            "4) Для кожного x3 використано інтеграл T_3W(x3)=∫P_3W(x3,t)dt на [0,+∞).",
+            "5) Нижче наведено ілюстративний seed-терм із розкладеної форми (j1=j2=j3=0); він не є повним значенням.",
+            "6) Деталізація для вибраних x3:",
         ]
         for sample in samples:
             steps.append(f"   - {sample}")
-        steps.append(f"6) Перевірка діапазону: min(T_3W)={min_value}, max(T_3W)={max_value}.")
+        steps.append(f"7) Перевірка діапазону: min(T_3W)={min_value}, max(T_3W)={max_value}.")
         return steps
 
     def _steps_for_t_gamma(self, result: float, valid_terms: list[float] | None = None) -> list[str]:
@@ -499,29 +503,18 @@ class SolverCalculator:
         p = self.input_data
         q3w, _, _ = self.find_Q_3W()
         k3w, _, _ = self.find_K_Г3W()
-        n_total = p.a1 * p.a2 * p.a3
-        x3_samples = [x for x in [p.k, p.k + 1, p.k + 2, n_total] if x <= n_total]
-        sample_lines = []
-        for x3 in x3_samples:
-            seed = self._a3w_seed_term(x3)
-            sample_lines.append(
-                f"x3={x3}: x2_min={seed['x2_min']}, x1_min={seed['x1_min']}, "
-                f"A=lambda1*x1+lambda2*x2={self._fmt_number(float(seed['A']))}, "
-                f"B=lambda3*x3={self._fmt_number(float(seed['B']))}, "
-                f"M=B*beta*t^(beta-1)+lambda0+A={self._fmt_number(float(seed['multiplier']))}, "
-                f"inner=M*exp(-A*t)*exp(-B*t^beta)={self._fmt_number(float(seed['inner']))}, "
-                f"seed=exp(-lambda0*t)*coef*inner={self._fmt_number(float(seed['seed']))}"
-            )
+        dt = max(1e-5, 1e-4 * p.t)
+        t_minus = max(1e-12, p.t - dt)
+        t_plus = p.t + dt
+        actual_dt = t_plus - t_minus
         steps = [
             f"1) Підставлено в a_3W(k,t): k={p.k}, t={self._fmt_number(p.t)}.",
-            f"2) Проміжні значення для поточного t: K_Г3W={self._fmt_number(k3w)}, Q_3W={self._fmt_number(q3w)}.",
-            f"3) Параметри розподілу 3-го рівня: lambda3={self._fmt_number(p.lambda3)}, beta={self._fmt_number(p.beta)}.",
-            f"4) Зовнішня сума для a_3W виконується за x3 від k={p.k} до N={n_total}.",
-            "5) Деталізація seed-внесків для вибраних x3:",
+            "2) Використано визначення a_3W(t)=dQ_3W/dt, де Q_3W(t)=1-K_Г3W(t).",
+            f"3) Для стабільності похідну оцінено центральною різницею: [Q(t+dt)-Q(t-dt)]/(2*dt) з dt={self._fmt_number(dt)}.",
+            f"4) Вузли похідної: t-dt={self._fmt_number(t_minus)}, t+dt={self._fmt_number(t_plus)}, фактичний крок={self._fmt_number(actual_dt)}.",
+            f"5) Контрольне значення в точці t: K_Г3W={self._fmt_number(k3w)}, Q_3W={self._fmt_number(q3w)}.",
         ]
-        for line in sample_lines:
-            steps.append(f"   - {line}")
-        steps.append(f"6) Після повної багаторівневої суми отримано a_3W={self._fmt_number(result)}.")
+        steps.append(f"6) Підсумок після чисельного диференціювання: a_3W={self._fmt_number(result)}.")
         return steps
 
     def _steps_for_lambda3w(self, result: float) -> list[str]:

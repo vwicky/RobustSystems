@@ -65,7 +65,7 @@ var_6 = InputData(
     lambda2 = 3e-3, # 1 / hours
     lambda3 = 2e-4, # 1 / hours
 
-    beta = 1.3,
+    beta = 1.2, # changed from 1.3 to 1.2
 
     plots = ["Q_3W", "a_3W"]
 )
@@ -78,7 +78,7 @@ var_17 = InputData(
     a3 = 9,
 
     k = 8,   # num. of total working components
-    t = 1000.0, # hours 
+    t = 500.0, # hours 
 
     lambda0 = 2e-3, # 1 / hours
     lambda1 = 3e-3, # 1 / hours

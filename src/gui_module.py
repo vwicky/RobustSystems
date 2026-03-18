@@ -29,6 +29,8 @@ from PyQt5.QtWidgets import (
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib import colors as mcolors
+from matplotlib.ticker import MaxNLocator, ScalarFormatter
 from matplotlib.figure import Figure
 
 from src.gui_models import MetricResult, normalize_metrics
@@ -361,22 +363,35 @@ class GUIModule(QMainWindow):
     ) -> FigureCanvas:
         fig = Figure(figsize=(5.0, 2.7), dpi=120)
         ax = fig.add_subplot(111)
-        if plot_kind == "histogram":
-            # Histogram-like view for metric profiles: value on X, index/key on Y.
-            ax.barh(y_values, x_values, color=self._palette.accent, alpha=0.85, height=0.8)
+        if plot_kind == "bars":
+            # Function-like bars with swapped axes: x = mean time, y = x3.
+            bar_palette = sns.light_palette(self._palette.accent, n_colors=max(len(x_values), 2), reverse=False)
+            bar_colors = bar_palette[: len(x_values)]
+            ax.barh(
+                y_values,
+                x_values,
+                color=bar_colors,
+                edgecolor=mcolors.to_rgba(self._palette.border, alpha=0.55),
+                linewidth=0.35,
+                alpha=0.95,
+                height=0.82,
+            )
         else:
-            sns.scatterplot(x=x_values, y=y_values, ax=ax, color=self._palette.accent, s=34, alpha=0.9, legend=False)
-        ax.grid(True, alpha=0.25, linestyle="--", linewidth=0.7)
+            # Higher-quality tab plot: trend line + points.
+            sns.lineplot(x=x_values, y=y_values, ax=ax, color=self._palette.accent, lw=1.8, alpha=0.9)
+            sns.scatterplot(x=x_values, y=y_values, ax=ax, color=self._palette.accent, s=28, alpha=0.95, legend=False)
+        ax.set_facecolor(mcolors.to_rgba(self._palette.card_bg, alpha=0.34))
+        ax.grid(True, alpha=0.32, linestyle="--", linewidth=0.7)
         ax.set_xlabel(self._wrap_axis_label(x_axis_label), fontsize=9)
         ax.set_ylabel(self._wrap_axis_label(y_axis_label), fontsize=9)
+        ax.tick_params(axis="both", labelsize=8)
 
-        if plot_kind == "histogram":
-            nonzero_abs = [abs(v) for v in x_values if v not in (0.0, -0.0)]
-            if nonzero_abs:
-                min_nonzero = min(nonzero_abs)
-                max_nonzero = max(nonzero_abs)
-                if min_nonzero > 0 and (max_nonzero / min_nonzero) >= 1e4:
-                    ax.set_xscale("symlog", linthresh=max(min_nonzero * 10.0, 1e-6))
+        if plot_kind == "bars":
+            # Keep ordinary decimal x-axis labels (no scientific 10^n formatting).
+            ax.xaxis.set_major_formatter(ScalarFormatter(useMathText=False))
+            ax.ticklabel_format(style="plain", axis="x", useOffset=False)
+            if y_values and all(float(v).is_integer() for v in y_values):
+                ax.yaxis.set_major_locator(MaxNLocator(integer=True))
             if x_values and min(x_values) >= 0:
                 ax.set_xlim(left=0)
         else:
@@ -395,7 +410,7 @@ class GUIModule(QMainWindow):
             ax.set_xticks(x_values)
             ax.set_xticklabels(x_labels, rotation=0, fontsize=8)
 
-        fig.tight_layout()
+        fig.tight_layout(pad=1.1)
         canvas = FigureCanvas(fig)
         canvas.setMinimumHeight(240)
         canvas.setMinimumWidth(380)
@@ -426,8 +441,10 @@ class GUIModule(QMainWindow):
         return f"{numeric:.6g}"
 
     def _build_value_widget(self, value, metric_name: str | None = None) -> QWidget:
-        is_p3w_metric = metric_name == "P_3W"
-        is_t3w_metric = metric_name == "T_3W"
+        normalized_metric_name = (metric_name or "").strip()
+        metric_key = normalized_metric_name.casefold()
+        is_p3w_metric = metric_key == "p_3w"
+        is_t3w_metric = metric_key == "t_3w"
         if is_p3w_metric:
             table_x_label = "Значення X3"
             table_y_label = "Ймовірності безвідмовної роботи системи"
@@ -447,15 +464,20 @@ class GUIModule(QMainWindow):
             return label
 
         if isinstance(value, (list, tuple)):
-            table = QTableWidget(len(value), 2)
+            if is_t3w_metric:
+                table_items = [(i, item) for i, item in enumerate(value) if i != 0]
+            else:
+                table_items = list(enumerate(value))
+
+            table = QTableWidget(len(table_items), 2)
             table.setHorizontalHeaderLabels([table_x_label, table_y_label])
             table.verticalHeader().setVisible(False)
             x_values: list[float] = []
             y_values: list[float] = []
-            for i, item in enumerate(value):
-                table.setItem(i, 0, QTableWidgetItem(str(i)))
+            for row, (i, item) in enumerate(table_items):
+                table.setItem(row, 0, QTableWidgetItem(str(i)))
                 item_text = self._format_value(item)
-                table.setItem(i, 1, QTableWidgetItem(item_text))
+                table.setItem(row, 1, QTableWidgetItem(item_text))
                 numeric_item = self._to_numeric(item)
                 if numeric_item is not None:
                     x_values.append(float(i))
@@ -468,7 +490,7 @@ class GUIModule(QMainWindow):
                 plot_y_values = x_values if is_t3w_metric else y_values
                 x_axis_label = "Середній час роботи системи" if is_t3w_metric else default_x_axis_label
                 y_axis_label = "Значення X3" if is_t3w_metric else default_y_axis_label
-                plot_kind = "histogram" if is_t3w_metric else "scatter"
+                plot_kind = "bars" if is_t3w_metric else "scatter"
                 container = QWidget()
                 container_layout = QHBoxLayout(container)
                 container_layout.setContentsMargins(0, 0, 0, 0)
@@ -488,13 +510,21 @@ class GUIModule(QMainWindow):
             return table
 
         if isinstance(value, dict):
-            table = QTableWidget(len(value), 2)
+            filtered_items: list[tuple[object, object]] = []
+            for k, v in value.items():
+                if is_t3w_metric:
+                    numeric_key = self._to_numeric(k)
+                    if numeric_key is not None and numeric_key == 0.0:
+                        continue
+                filtered_items.append((k, v))
+
+            table = QTableWidget(len(filtered_items), 2)
             table.setHorizontalHeaderLabels([table_x_label, table_y_label])
             table.verticalHeader().setVisible(False)
             x_values: list[float] = []
             y_values: list[float] = []
             x_labels: list[str] = []
-            for row, (k, v) in enumerate(value.items()):
+            for row, (k, v) in enumerate(filtered_items):
                 table.setItem(row, 0, QTableWidgetItem(str(k)))
                 value_text = self._format_value(v)
                 table.setItem(row, 1, QTableWidgetItem(value_text))
@@ -515,7 +545,7 @@ class GUIModule(QMainWindow):
                 plot_y_values = x_values if is_t3w_metric else y_values
                 x_axis_label = "Середній час роботи системи" if is_t3w_metric else default_x_axis_label
                 y_axis_label = "Значення X3" if is_t3w_metric else default_y_axis_label
-                plot_kind = "histogram" if is_t3w_metric else "scatter"
+                plot_kind = "bars" if is_t3w_metric else "scatter"
                 container = QWidget()
                 container_layout = QHBoxLayout(container)
                 container_layout.setContentsMargins(0, 0, 0, 0)
