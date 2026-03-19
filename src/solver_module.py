@@ -56,9 +56,7 @@ class SolverModule:
         import numpy as np
         from matplotlib.figure import Figure
         from matplotlib.widgets import Slider
-        
-        # 1. Import our hidden vectorized formulas
-        from src.formulas.plot_3w_vec import q_3w_vec, a_3w_vec, lambda_3w_vec
+        from src.formulas.kh3w import get_K_G3W_functions
         
         # 2. Grab all parameters directly from input_data
         p = self.input_data
@@ -69,12 +67,11 @@ class SolverModule:
         a3_init = p.a3
 
         # Keep plotting model aligned with InputData fields (single source of truth).
-        k1 = min(p.k, a1_init)
-        k2 = min(p.k, a2_init)
-        k3_init = min(p.k, a3_init)
+        k_init = p.k
         l1, l2, l3_init = p.lambda1, p.lambda2, p.lambda3
-        b1 = b2 = b3_init = p.beta
+        b3_init = p.beta
         l0_init = p.lambda0
+        compute_k_gamma, _ = get_K_G3W_functions()
 
         # 3. Determine which plots to draw based on input_data.plots
         allowed_plots = ["Q_3W", "a_3W", "lambda_3W"]
@@ -86,10 +83,48 @@ class SolverModule:
         num_plots = len(requested_plots)
         t_vals = np.linspace(0.1, 500, 1200)
 
+        def compute_curves(
+            t_grid,
+            a1_val: float,
+            a2_val: float,
+            a3_val: float,
+            k_val: float,
+            l3_val: float,
+            b3_val: float,
+            l0_val: float,
+        ):
+            a1_int = int(round(a1_val))
+            a2_int = int(round(a2_val))
+            a3_int = int(round(a3_val))
+            n_total = a1_int * a2_int * a3_int
+            k_int = int(round(k_val))
+            k_int = max(0, min(k_int, n_total))
+
+            k_curve = compute_k_gamma(
+                k=k_int,
+                t=t_grid,
+                l0=l0_val,
+                l1=l1,
+                l2=l2,
+                l3=l3_val,
+                a1=a1_int,
+                a2=a2_int,
+                a3=a3_int,
+                b3=b3_val,
+            )
+            q_curve = 1.0 - np.asarray(k_curve, dtype=float)
+            q_curve = np.clip(q_curve, 0.0, 1.0 - 1e-9)
+            q_curve = np.maximum.accumulate(q_curve)
+            a_curve = np.gradient(q_curve, t_grid, edge_order=2)
+            a_curve = np.clip(a_curve, 0.0, None)
+            p_curve = np.clip(1.0 - q_curve, 1e-9, None)
+            lambda_curve = np.nan_to_num(a_curve / p_curve, nan=0.0, posinf=0.0, neginf=0.0)
+            return q_curve, a_curve, lambda_curve
+
         # 4. Calculate initial data instantly
-        q_init = q_3w_vec(t_vals, a1_init, k1, l1, b1, a2_init, k2, l2, b2, a3_init, k3_init, l3_init, b3_init, l0_init)
-        a_init = a_3w_vec(t_vals, q_init)
-        lam_init = lambda_3w_vec(t_vals, a_init, q_init)
+        q_init, a_init, lam_init = compute_curves(
+            t_vals, a1_init, a2_init, a3_init, k_init, l3_init, b3_init, l0_init
+        )
 
         plot_config = {
             "Q_3W": (q_init, 'darkorange', r"Ймовірність відмови $Q_{3W}(t)$", r"Ймовірність $Q$"),
@@ -138,7 +173,7 @@ class SolverModule:
         s_a1 = Slider(ax_a1, r'$a_1$ (елем. Р1)', 1, 100, valinit=a1_init, valstep=1)
         s_a2 = Slider(ax_a2, r'$a_2$ (елем. Р2)', 1, 100, valinit=a2_init, valstep=1)
         s_a3 = Slider(ax_a3, r'$a_3$ (елем. Р3)', 1, 100, valinit=a3_init, valstep=1)
-        s_k3 = Slider(ax_k3, r'$k_3$ (поріг Р3)', 1, a3_init, valinit=k3_init, valstep=1)
+        s_k3 = Slider(ax_k3, r'$k$ (поріг)', 0, a1_init * a2_init * a3_init, valinit=k_init, valstep=1)
         s_l3 = Slider(ax_l3, r'$\lambda_3$', 0.000001, 0.01, valinit=l3_init, valfmt='%.6f')
         s_b3 = Slider(ax_b3, r'$\beta_3$ (форма)', 0.3, 6.0, valinit=b3_init)
         s_l0 = Slider(ax_l0, r'$\lambda_0$ (зовн.)', 0.000001, 0.01, valinit=l0_init, valfmt='%.6f')
@@ -149,20 +184,21 @@ class SolverModule:
             a2_val = s_a2.val
             a3_val, l3_val, b3_val, l0_val = s_a3.val, s_l3.val, s_b3.val, s_l0.val
 
-            # Keep k3 slider range synchronized when a3 changes.
-            s_k3.valmax = a3_val
-            s_k3.ax.set_xlim(s_k3.valmin, a3_val)
+            # Keep k slider range synchronized with total component count.
+            n_total = int(round(a1_val * a2_val * a3_val))
+            s_k3.valmax = max(1, n_total)
+            s_k3.ax.set_xlim(s_k3.valmin, s_k3.valmax)
             
-            # Constraint for Level 3
+            # Keep k in valid range for current (a1,a2,a3).
             current_k3 = s_k3.val
-            if current_k3 > a3_val:
-                s_k3.set_val(a3_val)
-                current_k3 = a3_val
+            if current_k3 > s_k3.valmax:
+                s_k3.set_val(s_k3.valmax)
+                current_k3 = s_k3.valmax
                 
-            # Recalculate arrays with dynamic a1 and a2!
-            new_q = q_3w_vec(t_vals, a1_val, k1, l1, b1, a2_val, k2, l2, b2, a3_val, current_k3, l3_val, b3_val, l0_val)
-            new_a = a_3w_vec(t_vals, new_q)
-            new_lam = lambda_3w_vec(t_vals, new_a, new_q)
+            # Recalculate arrays using the same core model as tab 1/2.
+            new_q, new_a, new_lam = compute_curves(
+                t_vals, a1_val, a2_val, a3_val, current_k3, l3_val, b3_val, l0_val
+            )
             
             data_map = {"Q_3W": new_q, "a_3W": new_a, "lambda_3W": new_lam}
 
