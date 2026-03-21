@@ -1,3 +1,4 @@
+import os
 from typing import Any
 from matplotlib.figure import Figure
 
@@ -81,7 +82,7 @@ class SolverModule:
             requested_plots = ["Q_3W", "a_3W"]
 
         num_plots = len(requested_plots)
-        t_vals = np.linspace(0.1, 500, 1200)
+        t_vals = np.linspace(0.1, p.t, 1200)
 
         def compute_curves(
             t_grid,
@@ -242,8 +243,56 @@ class SolverModule:
                     continue
                 print(f"{metric}: {payload['value']} (time: {payload['time']:.4f}s)")
 
+    def _architecture_task4_paths(self) -> tuple[str, str] | None:
+        """If present, paths to static architecture PNGs for this variant (tab 4)."""
+        root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        base = os.path.join(root, "architecture", str(self.input_data.var_id))
+        p1 = os.path.join(base, "structure_1.png")
+        p2 = os.path.join(base, "structure_2.png")
+        if os.path.isfile(p1) and os.path.isfile(p2):
+            return (p1, p2)
+        return None
+
+    def _task_4_from_architecture_images(self, paths: tuple[str, str]) -> Figure:
+        """Two stacked images: structure_1 (ІРС tree), structure_2 (RBD)."""
+        from matplotlib import image as mpimg
+
+        path1, path2 = paths
+        img1 = mpimg.imread(path1)
+        img2 = mpimg.imread(path2)
+
+        fig = Figure(figsize=(12, 11))
+        fig.subplots_adjust(hspace=0.2, left=0.02, right=0.98, top=0.94, bottom=0.02)
+
+        ax1 = fig.add_subplot(2, 1, 1)
+        ax1.set_title(
+            "1. Структурна схема ІРС (Ієрархічне дерево)",
+            fontsize=14,
+            fontweight="bold",
+        )
+        ax1.axis("off")
+        ax1.imshow(img1)
+
+        ax2 = fig.add_subplot(2, 1, 2)
+        a1 = getattr(self.input_data, "a1", 3)
+        a2 = getattr(self.input_data, "a2", 3)
+        a3 = getattr(self.input_data, "a3", 3)
+        ax2.set_title(
+            f"2. Послідовно-паралельна схема резервування (a1={a1}, a2={a2}, a3={a3})",
+            fontsize=14,
+            fontweight="bold",
+        )
+        ax2.axis("off")
+        ax2.imshow(img2)
+
+        return fig
+
     def task_4(self) -> Figure:
         """ Draw the HBS (ІРС) tree and the representative series-parallel RBD """
+        paths = self._architecture_task4_paths()
+        if paths is not None:
+            return self._task_4_from_architecture_images(paths)
+
         import networkx as nx
         from matplotlib.figure import Figure
         

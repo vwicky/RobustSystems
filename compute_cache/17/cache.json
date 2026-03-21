@@ -272,26 +272,32 @@
             "7) Кінцева точка масиву: P_3W(x3=252)=6.01296e-24."
         ]
     ],
-    "K_Г3W": [
-        0.2338810410233338,
-        "e^{- \\lambda_{0} t} \\sum_{\\substack{\\left\\lceil{\\frac{\\left\\lceil{\\frac{x_{3}}{a_{3}}}\\right\\rceil}{a_{2}}}\\right\\rceil \\leq x_{1} \\leq a_{1}\\\\k \\leq x_{3} \\leq a_{1} a_{2} a_{3}}} \\left(1 - e^{- \\lambda_{1} t}\\right)^{a_{1} - x_{1}} e^{- \\lambda_{1} t x_{1}} {\\binom{a_{1}}{x_{1}}} \\sum_{x_{2}=\\left\\lceil{\\frac{x_{3}}{a_{3}}}\\right\\rceil}^{a_{2} x_{1}} \\left(1 - e^{- \\lambda_{2} t}\\right)^{a_{2} x_{1} - x_{2}} \\left(1 - e^{- \\lambda_{3} t^{\\beta_{3}}}\\right)^{a_{3} x_{2} - x_{3}} e^{- \\lambda_{2} t x_{2}} e^{- \\lambda_{3} t^{\\beta_{3}} x_{3}} {\\binom{a_{2} x_{1}}{x_{2}}} {\\binom{a_{3} x_{2}}{x_{3}}}",
-        [
-            "1) Підставлено в K_Г3W(k,t): k=8, t=500.",
-            "2) Проміжний крок: N=a1*a2*a3=4*7*9=252, поріг готовності k=8.",
-            "3) Проміжні надійності рівнів у момент t: R0=exp(-lambda0*t)=0.367879, R1=0.22313, R2=0.904837, R3_Weibull=0.97291.",
-            "4) Після підстановки всіх параметрів у формулу отримано K_Г3W=0.233881."
+    "K_Г3W": {
+        "sig": "a1=4|a2=7|a3=9|k=8|t=500|l0=0.002|l1=0.003|l2=0.0002|l3=0.0001|beta=1.2",
+        "data": [
+            0.2338810410233338,
+            "e^{- \\lambda_{0} t} \\sum_{\\substack{\\left\\lceil{\\frac{\\left\\lceil{\\frac{x_{3}}{a_{3}}}\\right\\rceil}{a_{2}}}\\right\\rceil \\leq x_{1} \\leq a_{1}\\\\k \\leq x_{3} \\leq a_{1} a_{2} a_{3}}} \\left(1 - e^{- \\lambda_{1} t}\\right)^{a_{1} - x_{1}} e^{- \\lambda_{1} t x_{1}} {\\binom{a_{1}}{x_{1}}} \\sum_{x_{2}=\\left\\lceil{\\frac{x_{3}}{a_{3}}}\\right\\rceil}^{a_{2} x_{1}} \\left(1 - e^{- \\lambda_{2} t}\\right)^{a_{2} x_{1} - x_{2}} \\left(1 - e^{- \\lambda_{3} t^{\\beta_{3}}}\\right)^{a_{3} x_{2} - x_{3}} e^{- \\lambda_{2} t x_{2}} e^{- \\lambda_{3} t^{\\beta_{3}} x_{3}} {\\binom{a_{2} x_{1}}{x_{2}}} {\\binom{a_{3} x_{2}}{x_{3}}}",
+            [
+                "1) Підставлено в K_Г3W(k,t): k=8, t=500.",
+                "2) Проміжний крок: N=a1*a2*a3=4*7*9=252, поріг готовності k=8.",
+                "3) Проміжні надійності рівнів у момент t: R0=exp(-lambda0*t)=0.367879, R1=0.22313, R2=0.904837, R3_Weibull=0.97291.",
+                "4) Після підстановки всіх параметрів у формулу отримано K_Г3W=0.233881."
+            ]
         ]
-    ],
-    "Q_3W": [
-        0.7661189589766662,
-        "1 - K_{\\Gamma 3W}",
-        [
-            "1) Використано формулу Q_3W = 1 - K_Г3W.",
-            "2) Проміжний крок: K_Г3W=0.233881.",
-            "3) Арифметика: 1 - K_Г3W = 1 - 0.233881 = 0.766119.",
-            "4) Підсумок: Q_3W=0.766119."
+    },
+    "Q_3W": {
+        "sig": "a1=4|a2=7|a3=9|k=8|t=500|l0=0.002|l1=0.003|l2=0.0002|l3=0.0001|beta=1.2",
+        "data": [
+            0.7661189589766662,
+            "1 - K_{\\Gamma 3W}",
+            [
+                "1) Використано формулу Q_3W = 1 - K_Г3W.",
+                "2) Проміжний крок: K_Г3W=0.233881.",
+                "3) Арифметика: 1 - K_Г3W = 1 - 0.233881 = 0.766119.",
+                "4) Підсумок: Q_3W=0.766119."
+            ]
         ]
-    ],
+    },
     "T_3W_v2": [
         [
             157.7924413806641,
@@ -576,26 +582,32 @@
             "5) Повна сума: T_Г3W=342.195."
         ]
     ],
-    "a_3W": [
-        0.000929604644622561,
-        "\\lambda_{0} e^{- \\lambda_{0} t} \\sum_{\\substack{\\left\\lceil{\\frac{\\left\\lceil{\\frac{x_{3}}{a_{3}}}\\right\\rceil}{a_{2}}}\\right\\rceil \\leq x_{1} \\leq a_{1}\\\\k \\leq x_{3} \\leq a_{1} a_{2} a_{3}}} \\left(1 - e^{- \\lambda_{1} t}\\right)^{a_{1} - x_{1}} e^{- \\lambda_{1} t x_{1}} {\\binom{a_{1}}{x_{1}}} \\sum_{x_{2}=\\left\\lceil{\\frac{x_{3}}{a_{3}}}\\right\\rceil}^{a_{2} x_{1}} \\left(1 - e^{- \\lambda_{2} t}\\right)^{a_{2} x_{1} - x_{2}} \\left(1 - e^{- \\lambda_{3} t^{\\beta_{3}}}\\right)^{a_{3} x_{2} - x_{3}} e^{- \\lambda_{2} t x_{2}} e^{- \\lambda_{3} t^{\\beta_{3}} x_{3}} {\\binom{a_{2} x_{1}}{x_{2}}} {\\binom{a_{3} x_{2}}{x_{3}}} - e^{- \\lambda_{0} t} \\sum_{\\substack{\\left\\lceil{\\frac{\\left\\lceil{\\frac{x_{3}}{a_{3}}}\\right\\rceil}{a_{2}}}\\right\\rceil \\leq x_{1} \\leq a_{1}\\\\k \\leq x_{3} \\leq a_{1} a_{2} a_{3}}} \\left(- \\lambda_{1} x_{1} \\left(1 - e^{- \\lambda_{1} t}\\right)^{a_{1} - x_{1}} e^{- \\lambda_{1} t x_{1}} {\\binom{a_{1}}{x_{1}}} \\sum_{x_{2}=\\left\\lceil{\\frac{x_{3}}{a_{3}}}\\right\\rceil}^{a_{2} x_{1}} \\left(1 - e^{- \\lambda_{2} t}\\right)^{a_{2} x_{1} - x_{2}} \\left(1 - e^{- \\lambda_{3} t^{\\beta_{3}}}\\right)^{a_{3} x_{2} - x_{3}} e^{- \\lambda_{2} t x_{2}} e^{- \\lambda_{3} t^{\\beta_{3}} x_{3}} {\\binom{a_{2} x_{1}}{x_{2}}} {\\binom{a_{3} x_{2}}{x_{3}}} + \\frac{\\lambda_{1} \\left(1 - e^{- \\lambda_{1} t}\\right)^{a_{1} - x_{1}} \\left(a_{1} - x_{1}\\right) e^{- \\lambda_{1} t} e^{- \\lambda_{1} t x_{1}} {\\binom{a_{1}}{x_{1}}} \\sum_{x_{2}=\\left\\lceil{\\frac{x_{3}}{a_{3}}}\\right\\rceil}^{a_{2} x_{1}} \\left(1 - e^{- \\lambda_{2} t}\\right)^{a_{2} x_{1} - x_{2}} \\left(1 - e^{- \\lambda_{3} t^{\\beta_{3}}}\\right)^{a_{3} x_{2} - x_{3}} e^{- \\lambda_{2} t x_{2}} e^{- \\lambda_{3} t^{\\beta_{3}} x_{3}} {\\binom{a_{2} x_{1}}{x_{2}}} {\\binom{a_{3} x_{2}}{x_{3}}}}{1 - e^{- \\lambda_{1} t}} + \\left(1 - e^{- \\lambda_{1} t}\\right)^{a_{1} - x_{1}} e^{- \\lambda_{1} t x_{1}} {\\binom{a_{1}}{x_{1}}} \\sum_{x_{2}=\\left\\lceil{\\frac{x_{3}}{a_{3}}}\\right\\rceil}^{a_{2} x_{1}} \\left(- \\frac{\\beta_{3} \\lambda_{3} t^{\\beta_{3}} x_{3} \\left(1 - e^{- \\lambda_{2} t}\\right)^{a_{2} x_{1} - x_{2}} \\left(1 - e^{- \\lambda_{3} t^{\\beta_{3}}}\\right)^{a_{3} x_{2} - x_{3}} e^{- \\lambda_{2} t x_{2}} e^{- \\lambda_{3} t^{\\beta_{3}} x_{3}} {\\binom{a_{2} x_{1}}{x_{2}}} {\\binom{a_{3} x_{2}}{x_{3}}}}{t} + \\frac{\\beta_{3} \\lambda_{3} t^{\\beta_{3}} \\left(1 - e^{- \\lambda_{2} t}\\right)^{a_{2} x_{1} - x_{2}} \\left(1 - e^{- \\lambda_{3} t^{\\beta_{3}}}\\right)^{a_{3} x_{2} - x_{3}} \\left(a_{3} x_{2} - x_{3}\\right) e^{- \\lambda_{3} t^{\\beta_{3}}} e^{- \\lambda_{2} t x_{2}} e^{- \\lambda_{3} t^{\\beta_{3}} x_{3}} {\\binom{a_{2} x_{1}}{x_{2}}} {\\binom{a_{3} x_{2}}{x_{3}}}}{t \\left(1 - e^{- \\lambda_{3} t^{\\beta_{3}}}\\right)} - \\lambda_{2} x_{2} \\left(1 - e^{- \\lambda_{2} t}\\right)^{a_{2} x_{1} - x_{2}} \\left(1 - e^{- \\lambda_{3} t^{\\beta_{3}}}\\right)^{a_{3} x_{2} - x_{3}} e^{- \\lambda_{2} t x_{2}} e^{- \\lambda_{3} t^{\\beta_{3}} x_{3}} {\\binom{a_{2} x_{1}}{x_{2}}} {\\binom{a_{3} x_{2}}{x_{3}}} + \\frac{\\lambda_{2} \\left(1 - e^{- \\lambda_{2} t}\\right)^{a_{2} x_{1} - x_{2}} \\left(1 - e^{- \\lambda_{3} t^{\\beta_{3}}}\\right)^{a_{3} x_{2} - x_{3}} \\left(a_{2} x_{1} - x_{2}\\right) e^{- \\lambda_{2} t} e^{- \\lambda_{2} t x_{2}} e^{- \\lambda_{3} t^{\\beta_{3}} x_{3}} {\\binom{a_{2} x_{1}}{x_{2}}} {\\binom{a_{3} x_{2}}{x_{3}}}}{1 - e^{- \\lambda_{2} t}}\\right)\\right)",
-        [
-            "1) Підставлено в a_3W(k,t): k=8, t=500.",
-            "2) Використано визначення a_3W(t)=dQ_3W/dt, де Q_3W(t)=1-K_Г3W(t).",
-            "3) Для стабільності похідну оцінено центральною різницею: [Q(t+dt)-Q(t-dt)]/(2*dt) з dt=0.05.",
-            "4) Вузли похідної: t-dt=499.95, t+dt=500.05, фактичний крок=0.1.",
-            "5) Контрольне значення в точці t: K_Г3W=0.233881, Q_3W=0.766119.",
-            "6) Підсумок після чисельного диференціювання: a_3W=0.000929605."
+    "a_3W": {
+        "sig": "a1=4|a2=7|a3=9|k=8|t=500|l0=0.002|l1=0.003|l2=0.0002|l3=0.0001|beta=1.2",
+        "data": [
+            0.000929604644622561,
+            "\\lambda_{0} e^{- \\lambda_{0} t} \\sum_{\\substack{\\left\\lceil{\\frac{\\left\\lceil{\\frac{x_{3}}{a_{3}}}\\right\\rceil}{a_{2}}}\\right\\rceil \\leq x_{1} \\leq a_{1}\\\\k \\leq x_{3} \\leq a_{1} a_{2} a_{3}}} \\left(1 - e^{- \\lambda_{1} t}\\right)^{a_{1} - x_{1}} e^{- \\lambda_{1} t x_{1}} {\\binom{a_{1}}{x_{1}}} \\sum_{x_{2}=\\left\\lceil{\\frac{x_{3}}{a_{3}}}\\right\\rceil}^{a_{2} x_{1}} \\left(1 - e^{- \\lambda_{2} t}\\right)^{a_{2} x_{1} - x_{2}} \\left(1 - e^{- \\lambda_{3} t^{\\beta_{3}}}\\right)^{a_{3} x_{2} - x_{3}} e^{- \\lambda_{2} t x_{2}} e^{- \\lambda_{3} t^{\\beta_{3}} x_{3}} {\\binom{a_{2} x_{1}}{x_{2}}} {\\binom{a_{3} x_{2}}{x_{3}}} - e^{- \\lambda_{0} t} \\sum_{\\substack{\\left\\lceil{\\frac{\\left\\lceil{\\frac{x_{3}}{a_{3}}}\\right\\rceil}{a_{2}}}\\right\\rceil \\leq x_{1} \\leq a_{1}\\\\k \\leq x_{3} \\leq a_{1} a_{2} a_{3}}} \\left(- \\lambda_{1} x_{1} \\left(1 - e^{- \\lambda_{1} t}\\right)^{a_{1} - x_{1}} e^{- \\lambda_{1} t x_{1}} {\\binom{a_{1}}{x_{1}}} \\sum_{x_{2}=\\left\\lceil{\\frac{x_{3}}{a_{3}}}\\right\\rceil}^{a_{2} x_{1}} \\left(1 - e^{- \\lambda_{2} t}\\right)^{a_{2} x_{1} - x_{2}} \\left(1 - e^{- \\lambda_{3} t^{\\beta_{3}}}\\right)^{a_{3} x_{2} - x_{3}} e^{- \\lambda_{2} t x_{2}} e^{- \\lambda_{3} t^{\\beta_{3}} x_{3}} {\\binom{a_{2} x_{1}}{x_{2}}} {\\binom{a_{3} x_{2}}{x_{3}}} + \\frac{\\lambda_{1} \\left(1 - e^{- \\lambda_{1} t}\\right)^{a_{1} - x_{1}} \\left(a_{1} - x_{1}\\right) e^{- \\lambda_{1} t} e^{- \\lambda_{1} t x_{1}} {\\binom{a_{1}}{x_{1}}} \\sum_{x_{2}=\\left\\lceil{\\frac{x_{3}}{a_{3}}}\\right\\rceil}^{a_{2} x_{1}} \\left(1 - e^{- \\lambda_{2} t}\\right)^{a_{2} x_{1} - x_{2}} \\left(1 - e^{- \\lambda_{3} t^{\\beta_{3}}}\\right)^{a_{3} x_{2} - x_{3}} e^{- \\lambda_{2} t x_{2}} e^{- \\lambda_{3} t^{\\beta_{3}} x_{3}} {\\binom{a_{2} x_{1}}{x_{2}}} {\\binom{a_{3} x_{2}}{x_{3}}}}{1 - e^{- \\lambda_{1} t}} + \\left(1 - e^{- \\lambda_{1} t}\\right)^{a_{1} - x_{1}} e^{- \\lambda_{1} t x_{1}} {\\binom{a_{1}}{x_{1}}} \\sum_{x_{2}=\\left\\lceil{\\frac{x_{3}}{a_{3}}}\\right\\rceil}^{a_{2} x_{1}} \\left(- \\frac{\\beta_{3} \\lambda_{3} t^{\\beta_{3}} x_{3} \\left(1 - e^{- \\lambda_{2} t}\\right)^{a_{2} x_{1} - x_{2}} \\left(1 - e^{- \\lambda_{3} t^{\\beta_{3}}}\\right)^{a_{3} x_{2} - x_{3}} e^{- \\lambda_{2} t x_{2}} e^{- \\lambda_{3} t^{\\beta_{3}} x_{3}} {\\binom{a_{2} x_{1}}{x_{2}}} {\\binom{a_{3} x_{2}}{x_{3}}}}{t} + \\frac{\\beta_{3} \\lambda_{3} t^{\\beta_{3}} \\left(1 - e^{- \\lambda_{2} t}\\right)^{a_{2} x_{1} - x_{2}} \\left(1 - e^{- \\lambda_{3} t^{\\beta_{3}}}\\right)^{a_{3} x_{2} - x_{3}} \\left(a_{3} x_{2} - x_{3}\\right) e^{- \\lambda_{3} t^{\\beta_{3}}} e^{- \\lambda_{2} t x_{2}} e^{- \\lambda_{3} t^{\\beta_{3}} x_{3}} {\\binom{a_{2} x_{1}}{x_{2}}} {\\binom{a_{3} x_{2}}{x_{3}}}}{t \\left(1 - e^{- \\lambda_{3} t^{\\beta_{3}}}\\right)} - \\lambda_{2} x_{2} \\left(1 - e^{- \\lambda_{2} t}\\right)^{a_{2} x_{1} - x_{2}} \\left(1 - e^{- \\lambda_{3} t^{\\beta_{3}}}\\right)^{a_{3} x_{2} - x_{3}} e^{- \\lambda_{2} t x_{2}} e^{- \\lambda_{3} t^{\\beta_{3}} x_{3}} {\\binom{a_{2} x_{1}}{x_{2}}} {\\binom{a_{3} x_{2}}{x_{3}}} + \\frac{\\lambda_{2} \\left(1 - e^{- \\lambda_{2} t}\\right)^{a_{2} x_{1} - x_{2}} \\left(1 - e^{- \\lambda_{3} t^{\\beta_{3}}}\\right)^{a_{3} x_{2} - x_{3}} \\left(a_{2} x_{1} - x_{2}\\right) e^{- \\lambda_{2} t} e^{- \\lambda_{2} t x_{2}} e^{- \\lambda_{3} t^{\\beta_{3}} x_{3}} {\\binom{a_{2} x_{1}}{x_{2}}} {\\binom{a_{3} x_{2}}{x_{3}}}}{1 - e^{- \\lambda_{2} t}}\\right)\\right)",
+            [
+                "1) Підставлено в a_3W(k,t): k=8, t=500.",
+                "2) Використано визначення a_3W(t)=dQ_3W/dt, де Q_3W(t)=1-K_Г3W(t).",
+                "3) Для стабільності похідну оцінено центральною різницею: [Q(t+dt)-Q(t-dt)]/(2*dt) з dt=0.05.",
+                "4) Вузли похідної: t-dt=499.95, t+dt=500.05, фактичний крок=0.1.",
+                "5) Контрольне значення в точці t: K_Г3W=0.233881, Q_3W=0.766119.",
+                "6) Підсумок після чисельного диференціювання: a_3W=0.000929605."
+            ]
         ]
-    ],
-    "lambda_3W": [
-        0.003974690041377986,
-        "\\frac{a_{3W}}{K_{\\Gamma 3W}}",
-        [
-            "1) Використано формулу lambda_3W = a_3W / K_Г3W.",
-            "2) Проміжні значення: a_3W=0.000929605, K_Г3W=0.233881.",
-            "3) Арифметика: 0.000929605 / 0.233881 = 0.00397469.",
-            "4) Підсумок: lambda_3W=0.00397469."
+    },
+    "lambda_3W": {
+        "sig": "a1=4|a2=7|a3=9|k=8|t=500|l0=0.002|l1=0.003|l2=0.0002|l3=0.0001|beta=1.2",
+        "data": [
+            0.003974690041377986,
+            "\\frac{a_{3W}}{K_{\\Gamma 3W}}",
+            [
+                "1) Використано формулу lambda_3W = a_3W / K_Г3W.",
+                "2) Проміжні значення: a_3W=0.000929605, K_Г3W=0.233881.",
+                "3) Арифметика: 0.000929605 / 0.233881 = 0.00397469.",
+                "4) Підсумок: lambda_3W=0.00397469."
+            ]
         ]
-    ]
+    }
 }

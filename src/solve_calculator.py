@@ -28,6 +28,13 @@ class SolverCalculator:
     def __init__(self, input_data: InputData):
         self.input_data = input_data
         self.cache = Cache(var_id=self.input_data.var_id)
+        self._cache_signature = (
+            f"a1={self.input_data.a1}|a2={self.input_data.a2}|a3={self.input_data.a3}|"
+            f"k={self.input_data.k}|t={self.input_data.t:.12g}|"
+            f"l0={self.input_data.lambda0:.12g}|l1={self.input_data.lambda1:.12g}|"
+            f"l2={self.input_data.lambda2:.12g}|l3={self.input_data.lambda3:.12g}|"
+            f"beta={self.input_data.beta:.12g}"
+        )
     
     def check_time(self, function) -> tuple[tuple[Any, str] | None, float, Exception | None]:
         start_time = time.time()
@@ -45,7 +52,19 @@ class SolverCalculator:
         return result, elapsed_time, error
     
     def check_in_cache(self, formula: str, *args, **kwargs) -> Any:
-        return self.cache.find(key=formula)
+        cached_raw = self.cache.find(key=formula)
+        if not cached_raw:
+            return None
+        if isinstance(cached_raw, dict) and "sig" in cached_raw and "data" in cached_raw:
+            if cached_raw["sig"] == self._cache_signature:
+                return cached_raw["data"]
+            return None
+        # Legacy cache format (plain tuple/list) is treated as stale to avoid
+        # mixing values computed under different input parameters.
+        return None
+
+    def _save_to_cache(self, key: str, payload: Any) -> None:
+        self.cache.add(key, {"sig": self._cache_signature, "data": payload})
 
     @staticmethod
     def _fmt_number(value: float) -> str:
@@ -197,7 +216,7 @@ class SolverCalculator:
         # FIXED: Convert to LaTeX once, cache it, AND return it
         latex_str = sympy.latex(visual_func())
         steps = self._steps_for_p3w(results)
-        self.cache.add("P_3W", (results, latex_str, steps))
+        self._save_to_cache("P_3W", (results, latex_str, steps))
         return results, latex_str, steps
     
     def find_K_Г3W(self, use_cache: bool = True) -> tuple[float, str, list[str]]:
@@ -227,7 +246,7 @@ class SolverCalculator:
         latex_str = sympy.latex(visual_func())
         numeric = float(result)
         steps = self._steps_for_k_gamma(numeric)
-        self.cache.add("K_Г3W", (numeric, latex_str, steps))
+        self._save_to_cache("K_Г3W", (numeric, latex_str, steps))
         return numeric, latex_str, steps
     
     def find_1_minus_K_Г3W(self, use_cache: bool = True) -> tuple[float, str, list[str]]:
@@ -239,11 +258,11 @@ class SolverCalculator:
         if cached_result and use_cache:
             return self._with_steps(cached_result, self._steps_for_q3w)
 
-        k_h3w, _, _ = self.find_K_Г3W()
+        k_h3w, _, _ = self.find_K_Г3W(use_cache=use_cache)
         result = 1 - k_h3w
 
         steps = self._steps_for_q3w(result)
-        self.cache.add("1_minus_K_Г3W", (result, "1 - K_{\\Gamma 3W}", steps))
+        self._save_to_cache("1_minus_K_Г3W", (result, "1 - K_{\\Gamma 3W}", steps))
         return result, "1 - K_{\\Gamma 3W}", steps
     
     def find_T_3W(self, use_cache: bool = True) -> tuple[list[float], str, list[str]]:
@@ -258,7 +277,7 @@ class SolverCalculator:
             ):
                 sanitized_values = [max(float(v), 0.0) for v in cached_values]
                 if sanitized_values != cached_values:
-                    self.cache.add(self._T3W_CACHE_KEY, (sanitized_values, cached_latex, cached_steps))
+                    self._save_to_cache(self._T3W_CACHE_KEY, (sanitized_values, cached_latex, cached_steps))
                 return sanitized_values, cached_latex, cached_steps
 
         p = self.input_data
@@ -283,7 +302,7 @@ class SolverCalculator:
 
         latex_str = sympy.latex(visual_func())
         steps = self._steps_for_t3w(results)
-        self.cache.add(self._T3W_CACHE_KEY, (results, latex_str, steps))
+        self._save_to_cache(self._T3W_CACHE_KEY, (results, latex_str, steps))
         return results, latex_str, steps
     
     def find_T_Г3W(self, use_cache: bool = True) -> tuple[float, str, list[str]]:
@@ -306,7 +325,7 @@ class SolverCalculator:
         if t3w_data:
             t3w, _, _ = self._with_steps(t3w_data, self._steps_for_t3w)
         else:
-            t3w, _, _ = self.find_T_3W()
+            t3w, _, _ = self.find_T_3W(use_cache=use_cache)
 
         valid_terms = []
         for i in range(p.k, p.a1 * p.a2 * p.a3 + 1):
@@ -323,7 +342,7 @@ class SolverCalculator:
 
         steps = self._steps_for_t_gamma(result_sum, valid_terms)
         latex_str = sympy.latex(get_T_Gamma_3W_sympy())
-        self.cache.add(self._T_GAMMA_CACHE_KEY, (result_sum, latex_str, steps))
+        self._save_to_cache(self._T_GAMMA_CACHE_KEY, (result_sum, latex_str, steps))
         return result_sum, latex_str, steps
     
     def find_Q_3W(self, use_cache: bool = True) -> tuple[float, str, list[str]]:
@@ -334,11 +353,11 @@ class SolverCalculator:
         if cached_result and use_cache:
             return self._with_steps(cached_result, self._steps_for_q3w)
         
-        k_h3w, _, _ = self.find_K_Г3W()
+        k_h3w, _, _ = self.find_K_Г3W(use_cache=use_cache)
         result = 1 - k_h3w
 
         steps = self._steps_for_q3w(result)
-        self.cache.add("Q_3W", (result, "1 - K_{\\Gamma 3W}", steps))
+        self._save_to_cache("Q_3W", (result, "1 - K_{\\Gamma 3W}", steps))
         return result, "1 - K_{\\Gamma 3W}", steps
     
     def find_a_3W(self, use_cache: bool = True) -> tuple[float, str, list[str]]:
@@ -368,7 +387,7 @@ class SolverCalculator:
         latex_str = sympy.latex(visual_func())
         numeric = float(result)
         steps = self._steps_for_a3w(numeric)
-        self.cache.add("a_3W", (numeric, latex_str, steps))
+        self._save_to_cache("a_3W", (numeric, latex_str, steps))
         return numeric, latex_str, steps
     
     def find_lambda_3W(self, use_cache: bool = True) -> tuple[float, str, list[str]]:
@@ -379,8 +398,8 @@ class SolverCalculator:
         if cached_result and use_cache:
             return self._with_steps(cached_result, self._steps_for_lambda3w)
 
-        a3w, _, _ = self.find_a_3W()
-        k_h3w, _, _ = self.find_K_Г3W()
+        a3w, _, _ = self.find_a_3W(use_cache=use_cache)
+        k_h3w, _, _ = self.find_K_Г3W(use_cache=use_cache)
 
         if abs(k_h3w) < 1e-12:
             raise ZeroDivisionError(
@@ -390,7 +409,7 @@ class SolverCalculator:
         result = a3w / k_h3w
 
         steps = self._steps_for_lambda3w(result)
-        self.cache.add("lambda_3W", (result, "\\frac{a_{3W}}{K_{\\Gamma 3W}}", steps))
+        self._save_to_cache("lambda_3W", (result, "\\frac{a_{3W}}{K_{\\Gamma 3W}}", steps))
         return result, "\\frac{a_{3W}}{K_{\\Gamma 3W}}", steps
 
     def _steps_for_p3w(self, values: list[float]) -> list[str]:

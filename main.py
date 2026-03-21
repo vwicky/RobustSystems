@@ -19,7 +19,7 @@ def main() -> None:
 
     app = QApplication(sys.argv)
     
-    input_data_6: InputData = var_17
+    input_data_6: InputData = var_6
 
     solver_module = SolverModule(input_data_6)
     gui_module = GUIModule(solver_module, theme_name=args.theme)

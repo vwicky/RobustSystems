@@ -1,5 +1,6 @@
 import io
 import math
+import statistics
 import textwrap
 
 import seaborn as sns
@@ -25,6 +26,7 @@ from PyQt5.QtWidgets import (
     QToolButton,
     QVBoxLayout,
     QWidget,
+    QSizePolicy,
 )
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -38,6 +40,9 @@ from src.gui_worker import ComputeWorker
 from src.color_themes import build_stylesheet, get_theme_palette, rgba
 from src.report_exporter import export_report_bundle
 from src.solver_module import SolverModule
+
+# T_3W: secondary chart bins consecutive X3 indices into groups of this size (mean T & mean X3 per bin).
+T3W_X3_GROUP_SIZE = 25
 
 METRIC_EXPLANATIONS_UA: dict[str, str] = {
     "P_3W": (
@@ -352,6 +357,157 @@ class GUIModule(QMainWindow):
             self.log(f"[report] export failed: {exc}")
             QMessageBox.critical(self, "Помилка експорту", str(exc))
 
+    @staticmethod
+    def _bin_t3w_for_boxplot(
+        t_values: list[float],
+        x3_values: list[float],
+        group_size: int = T3W_X3_GROUP_SIZE,
+    ) -> tuple[list[list[float]], list[float]]:
+        """Sort by X3; each group lists all T in that X3 block; centers_x3 = mean X3 per group (unused by step plot)."""
+        if len(t_values) != len(x3_values) or not t_values:
+            return [], []
+        pairs = sorted(zip(x3_values, t_values), key=lambda p: p[0])
+        groups_t: list[list[float]] = []
+        centers_x3: list[float] = []
+        for i in range(0, len(pairs), group_size):
+            chunk = pairs[i : i + group_size]
+            groups_t.append([p[1] for p in chunk])
+            centers_x3.append(sum(p[0] for p in chunk) / len(chunk))
+        return groups_t, centers_x3
+
+    @staticmethod
+    def _t3w_step_series_from_groups(groups_t: list[list[float]]) -> tuple[list[float], list[int]]:
+        """
+        One (time, level) per group: x = median(T) in group, sorted by time ascending;
+        y = integer levels G-1, G-2, …, 0 (decreasing step along x).
+        """
+        if not groups_t:
+            return [], []
+        t_medians: list[float] = []
+        for g in groups_t:
+            t_medians.append(float(statistics.median(g)) if g else 0.0)
+        order = sorted(range(len(t_medians)), key=lambda i: t_medians[i])
+        x_vals = [t_medians[i] for i in order]
+        g = len(groups_t)
+        y_vals = list(range(g - 1, -1, -1))
+        return x_vals, y_vals
+
+    @staticmethod
+    def _format_step_plot_time_label(t: float) -> str:
+        if not math.isfinite(t):
+            return str(t)
+        ax_abs = abs(t)
+        if ax_abs > 0 and (ax_abs >= 1e6 or ax_abs < 1e-4):
+            return f"{t:.6e}"
+        return f"{t:.6g}"
+
+    def _build_t3w_grouped_step_canvas(
+        self,
+        groups_t: list[list[float]],
+        x_axis_label: str,
+        y_axis_label: str,
+        plot_title: str,
+    ) -> FigureCanvas:
+        """Post-step plot: x = time (median T per group), y = decreasing integer rungs; black on white, no grid."""
+        fig = Figure(figsize=(5.6, 3.4), dpi=120)
+        fig.patch.set_facecolor("white")
+        ax = fig.add_subplot(111)
+        if not groups_t:
+            ax.set_visible(False)
+            canvas = FigureCanvas(fig)
+            canvas.setMinimumHeight(300)
+            canvas.setMinimumWidth(400)
+            return canvas
+
+        x_vals, y_vals = self._t3w_step_series_from_groups(groups_t)
+        if not x_vals:
+            canvas = FigureCanvas(fig)
+            canvas.setMinimumHeight(300)
+            canvas.setMinimumWidth(400)
+            return canvas
+
+        ax.set_facecolor("white")
+        ax.grid(False)
+
+        line_w = 0.9
+        if len(x_vals) >= 2:
+            ax.step(
+                x_vals,
+                y_vals,
+                where="post",
+                color="black",
+                linewidth=line_w,
+                zorder=1,
+            )
+        ax.plot(
+            x_vals,
+            y_vals,
+            linestyle="none",
+            marker="D",
+            markerfacecolor="black",
+            markeredgecolor="black",
+            markersize=4.5,
+            markeredgewidth=0.6,
+            zorder=3,
+        )
+
+        # Offset labels up and right so they clear the diamonds and the horizontal
+        # post-step segments (which extend to the right from each marker).
+        label_bbox = dict(
+            boxstyle="round,pad=0.28",
+            facecolor="white",
+            edgecolor="none",
+            alpha=0.96,
+        )
+        for xv, yv in zip(x_vals, y_vals):
+            ax.annotate(
+                self._format_step_plot_time_label(xv),
+                xy=(xv, yv),
+                xytext=(12, 10),
+                textcoords="offset points",
+                ha="left",
+                va="bottom",
+                fontsize=8,
+                color="black",
+                zorder=6,
+                bbox=label_bbox,
+            )
+
+        ax.set_title(plot_title, fontsize=9, pad=6, color="black")
+        ax.set_xlabel(self._wrap_axis_label(x_axis_label), fontsize=10, color="black")
+        ax.set_ylabel(self._wrap_axis_label(y_axis_label), fontsize=10, color="black")
+        ax.tick_params(axis="both", labelsize=9, colors="black")
+
+        ax.xaxis.set_major_formatter(ScalarFormatter(useMathText=False))
+        ax.ticklabel_format(style="plain", axis="x", useOffset=False)
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+        flat_t = [v for g in groups_t for v in g]
+        if flat_t and min(flat_t) >= 0:
+            ax.set_xlim(left=0)
+        nonzero_abs = [abs(v) for v in flat_t if v not in (0.0, -0.0)]
+        if nonzero_abs:
+            min_nz = min(nonzero_abs)
+            max_nz = max(nonzero_abs)
+            if min_nz > 0 and (max_nz / min_nz) >= 1e4:
+                ax.set_xscale("symlog", linthresh=max(min_nz * 10.0, 1e-6))
+
+        ymin, ymax = min(y_vals), max(y_vals)
+        pad_y = 0.55
+        # Extra room above the top step so labels (offset upward in points) stay inside the axes.
+        ax.set_ylim(ymin - pad_y, ymax + pad_y + 0.5)
+
+        for spine in ax.spines.values():
+            spine.set_visible(True)
+            spine.set_edgecolor("black")
+            spine.set_linewidth(1.0)
+
+        fig.tight_layout(pad=1.45)
+        canvas = FigureCanvas(fig)
+        canvas.setMinimumHeight(300)
+        canvas.setMinimumWidth(400)
+        return canvas
+
     def _build_plot_canvas(
         self,
         x_values: list[float],
@@ -360,8 +516,9 @@ class GUIModule(QMainWindow):
         x_axis_label: str = "Індекс",
         y_axis_label: str = "Значення",
         plot_kind: str = "scatter",
+        plot_title: str | None = None,
     ) -> FigureCanvas:
-        fig = Figure(figsize=(5.0, 2.7), dpi=120)
+        fig = Figure(figsize=(5.4, 3.3), dpi=120)
         ax = fig.add_subplot(111)
         if plot_kind == "bars":
             # Function-like bars with swapped axes: x = mean time, y = x3.
@@ -380,11 +537,13 @@ class GUIModule(QMainWindow):
             # Higher-quality tab plot: trend line + points.
             sns.lineplot(x=x_values, y=y_values, ax=ax, color=self._palette.accent, lw=1.8, alpha=0.9)
             sns.scatterplot(x=x_values, y=y_values, ax=ax, color=self._palette.accent, s=28, alpha=0.95, legend=False)
+        if plot_title:
+            ax.set_title(plot_title, fontsize=9, pad=6)
         ax.set_facecolor(mcolors.to_rgba(self._palette.card_bg, alpha=0.34))
         ax.grid(True, alpha=0.32, linestyle="--", linewidth=0.7)
-        ax.set_xlabel(self._wrap_axis_label(x_axis_label), fontsize=9)
-        ax.set_ylabel(self._wrap_axis_label(y_axis_label), fontsize=9)
-        ax.tick_params(axis="both", labelsize=8)
+        ax.set_xlabel(self._wrap_axis_label(x_axis_label), fontsize=10)
+        ax.set_ylabel(self._wrap_axis_label(y_axis_label), fontsize=10)
+        ax.tick_params(axis="both", labelsize=9)
 
         if plot_kind == "bars":
             # Keep ordinary decimal x-axis labels (no scientific 10^n formatting).
@@ -408,12 +567,12 @@ class GUIModule(QMainWindow):
 
         if x_labels:
             ax.set_xticks(x_values)
-            ax.set_xticklabels(x_labels, rotation=0, fontsize=8)
+            ax.set_xticklabels(x_labels, rotation=0, fontsize=9)
 
-        fig.tight_layout(pad=1.1)
+        fig.tight_layout(pad=1.45)
         canvas = FigureCanvas(fig)
-        canvas.setMinimumHeight(240)
-        canvas.setMinimumWidth(380)
+        canvas.setMinimumHeight(300 if plot_title else 310)
+        canvas.setMinimumWidth(400)
         return canvas
 
     @staticmethod
@@ -482,8 +641,9 @@ class GUIModule(QMainWindow):
                 if numeric_item is not None:
                     x_values.append(float(i))
                     y_values.append(numeric_item)
-            table.setMaximumHeight(280)
             table.resizeColumnsToContents()
+            if not (is_t3w_metric and len(y_values) >= 2):
+                table.setMaximumHeight(280)
 
             if len(y_values) >= 2:
                 plot_x_values = y_values if is_t3w_metric else x_values
@@ -496,16 +656,42 @@ class GUIModule(QMainWindow):
                 container_layout.setContentsMargins(0, 0, 0, 0)
                 container_layout.setSpacing(12)
                 container_layout.addWidget(table, 1)
-                container_layout.addWidget(
-                    self._build_plot_canvas(
-                        plot_x_values,
-                        plot_y_values,
-                        x_axis_label=x_axis_label,
-                        y_axis_label=y_axis_label,
-                        plot_kind=plot_kind,
-                    ),
-                    2,
+                primary_canvas = self._build_plot_canvas(
+                    plot_x_values,
+                    plot_y_values,
+                    x_axis_label=x_axis_label,
+                    y_axis_label=y_axis_label,
+                    plot_kind=plot_kind,
                 )
+                if is_t3w_metric:
+                    groups_t, _ = self._bin_t3w_for_boxplot(
+                        plot_x_values, plot_y_values
+                    )
+                    plots_host = QWidget()
+                    plots_layout = QVBoxLayout(plots_host)
+                    plots_layout.setContentsMargins(0, 0, 0, 0)
+                    plots_layout.setSpacing(10)
+                    plots_layout.addWidget(primary_canvas)
+                    step_canvas = None
+                    if groups_t:
+                        step_canvas = self._build_t3w_grouped_step_canvas(
+                            groups_t,
+                            x_axis_label=x_axis_label,
+                            y_axis_label="Рівень кроку (цілі значення)",
+                            plot_title=(
+                                f"Групи по {T3W_X3_GROUP_SIZE} значень X3 — "
+                                "ступінчаста залежність (час → рівень, post-step)"
+                            ),
+                        )
+                        plots_layout.addWidget(step_canvas)
+                    stack_h = primary_canvas.minimumHeight()
+                    if step_canvas is not None:
+                        stack_h += plots_layout.spacing() + step_canvas.minimumHeight()
+                    table.setFixedHeight(stack_h)
+                    table.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+                    container_layout.addWidget(plots_host, 2)
+                else:
+                    container_layout.addWidget(primary_canvas, 2)
                 return container
             return table
 
@@ -539,6 +725,8 @@ class GUIModule(QMainWindow):
                         x_values.append(float(row))
                         x_labels.append(str(k))
             table.resizeColumnsToContents()
+            if not (is_t3w_metric and len(y_values) >= 2):
+                table.setMaximumHeight(280)
 
             if len(y_values) >= 2:
                 plot_x_values = y_values if is_t3w_metric else x_values
@@ -551,17 +739,43 @@ class GUIModule(QMainWindow):
                 container_layout.setContentsMargins(0, 0, 0, 0)
                 container_layout.setSpacing(12)
                 container_layout.addWidget(table, 1)
-                container_layout.addWidget(
-                    self._build_plot_canvas(
-                        plot_x_values,
-                        plot_y_values,
-                        x_labels=x_labels,
-                        x_axis_label=x_axis_label,
-                        y_axis_label=y_axis_label,
-                        plot_kind=plot_kind,
-                    ),
-                    2,
+                primary_canvas = self._build_plot_canvas(
+                    plot_x_values,
+                    plot_y_values,
+                    x_labels=x_labels,
+                    x_axis_label=x_axis_label,
+                    y_axis_label=y_axis_label,
+                    plot_kind=plot_kind,
                 )
+                if is_t3w_metric:
+                    groups_t, _ = self._bin_t3w_for_boxplot(
+                        plot_x_values, plot_y_values
+                    )
+                    plots_host = QWidget()
+                    plots_layout = QVBoxLayout(plots_host)
+                    plots_layout.setContentsMargins(0, 0, 0, 0)
+                    plots_layout.setSpacing(10)
+                    plots_layout.addWidget(primary_canvas)
+                    step_canvas = None
+                    if groups_t:
+                        step_canvas = self._build_t3w_grouped_step_canvas(
+                            groups_t,
+                            x_axis_label=x_axis_label,
+                            y_axis_label="Рівень кроку (цілі значення)",
+                            plot_title=(
+                                f"Групи по {T3W_X3_GROUP_SIZE} значень X3 — "
+                                "ступінчаста залежність (час → рівень, post-step)"
+                            ),
+                        )
+                        plots_layout.addWidget(step_canvas)
+                    stack_h = primary_canvas.minimumHeight()
+                    if step_canvas is not None:
+                        stack_h += plots_layout.spacing() + step_canvas.minimumHeight()
+                    table.setFixedHeight(stack_h)
+                    table.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+                    container_layout.addWidget(plots_host, 2)
+                else:
+                    container_layout.addWidget(primary_canvas, 2)
                 return container
             return table
 
@@ -736,13 +950,20 @@ class GUIModule(QMainWindow):
         self.clear_layout(self.task4_layout)
         canvas4 = FigureCanvas(f4)
         toolbar4 = NavigationToolbar(canvas4, self)
-        self._task4_info_label = QLabel("Інтерактивність: клікніть вузол для деталей, колесо миші для масштабування.")
+        self._task4_info_label = QLabel()
         self._task4_info_label.setWordWrap(True)
         self._task4_info_label.setStyleSheet(
             f"background: {rgba(self._palette.card_bg, 0.76)}; "
             f"border: 1px solid {rgba(self._palette.border, 0.9)}; border-radius: 6px; "
             f"padding: 8px; color: {self._palette.text};"
         )
+        if getattr(f4, "_graph_data", None):
+            self._task4_info_label.setText(
+                "Інтерактивність: клікніть вузол для деталей, колесо миші для масштабування."
+            )
+            self._task4_info_label.setVisible(True)
+        else:
+            self._task4_info_label.setVisible(False)
         self.task4_layout.addWidget(self._task4_info_label)
         self.task4_layout.addWidget(toolbar4)
         self.task4_layout.addWidget(canvas4)
