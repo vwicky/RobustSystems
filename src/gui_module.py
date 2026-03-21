@@ -480,15 +480,14 @@ class GUIModule(QMainWindow):
         ax.ticklabel_format(style="plain", axis="x", useOffset=False)
         ax.yaxis.set_major_locator(MultipleLocator(T3W_X3_GROUP_SIZE))
 
-        flat_t = [v for g in groups_t for v in g]
-        if flat_t and min(flat_t) >= 0:
+        # Linear time axis only: symlog/log would hide 0 (user requires the axis to start at 0).
+        ax.set_xscale("linear")
+        if x_vals:
+            xmax = max(x_vals)
+            right = xmax * 1.08 if xmax > 0 else 1.0
+            ax.set_xlim(0, right)
+        else:
             ax.set_xlim(left=0)
-        nonzero_abs = [abs(v) for v in flat_t if v not in (0.0, -0.0)]
-        if nonzero_abs:
-            min_nz = min(nonzero_abs)
-            max_nz = max(nonzero_abs)
-            if min_nz > 0 and (max_nz / min_nz) >= 1e4:
-                ax.set_xscale("symlog", linthresh=max(min_nz * 10.0, 1e-6))
 
         ymin, ymax = min(y_vals), max(y_vals)
         step_y = float(T3W_X3_GROUP_SIZE)
@@ -550,8 +549,8 @@ class GUIModule(QMainWindow):
             ax.ticklabel_format(style="plain", axis="x", useOffset=False)
             if y_values and all(float(v).is_integer() for v in y_values):
                 ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-            if x_values and min(x_values) >= 0:
-                ax.set_xlim(left=0)
+            # T_3W bar chart: time axis ("Системний час роботи") always starts at 0.
+            ax.set_xlim(left=0)
         else:
             nonzero_abs = [abs(v) for v in y_values if v not in (0.0, -0.0)]
             if nonzero_abs:
@@ -608,7 +607,7 @@ class GUIModule(QMainWindow):
             table_y_label = "Ймовірності безвідмовної роботи системи"
         elif is_t3w_metric:
             table_x_label = "Значення X3"
-            table_y_label = "Середній час роботи системи"
+            table_y_label = "Системний час роботи"
         else:
             table_x_label = "Індекс"
             table_y_label = "Значення"
@@ -647,7 +646,7 @@ class GUIModule(QMainWindow):
             if len(y_values) >= 2:
                 plot_x_values = y_values if is_t3w_metric else x_values
                 plot_y_values = x_values if is_t3w_metric else y_values
-                x_axis_label = "Середній час роботи системи" if is_t3w_metric else default_x_axis_label
+                x_axis_label = "Системний час роботи" if is_t3w_metric else default_x_axis_label
                 y_axis_label = "Значення X3" if is_t3w_metric else default_y_axis_label
                 plot_kind = "bars" if is_t3w_metric else "scatter"
                 container = QWidget()
@@ -738,7 +737,7 @@ class GUIModule(QMainWindow):
             if len(y_values) >= 2:
                 plot_x_values = y_values if is_t3w_metric else x_values
                 plot_y_values = x_values if is_t3w_metric else y_values
-                x_axis_label = "Середній час роботи системи" if is_t3w_metric else default_x_axis_label
+                x_axis_label = "Системний час роботи" if is_t3w_metric else default_x_axis_label
                 y_axis_label = "Значення X3" if is_t3w_metric else default_y_axis_label
                 plot_kind = "bars" if is_t3w_metric else "scatter"
                 container = QWidget()
