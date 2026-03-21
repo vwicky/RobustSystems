@@ -32,7 +32,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib import colors as mcolors
-from matplotlib.ticker import MaxNLocator, ScalarFormatter
+from matplotlib.ticker import MaxNLocator, MultipleLocator, ScalarFormatter
 from matplotlib.figure import Figure
 
 from src.gui_models import MetricResult, normalize_metrics
@@ -376,10 +376,10 @@ class GUIModule(QMainWindow):
         return groups_t, centers_x3
 
     @staticmethod
-    def _t3w_step_series_from_groups(groups_t: list[list[float]]) -> tuple[list[float], list[int]]:
+    def _t3w_step_series_from_groups(groups_t: list[list[float]]) -> tuple[list[float], list[float]]:
         """
         One (time, level) per group: x = median(T) in group, sorted by time ascending;
-        y = integer levels G-1, G-2, …, 0 (decreasing step along x).
+        y = (G-1, G-2, …, 0) × T3W_X3_GROUP_SIZE (25) — same as групи X3, decreasing along x.
         """
         if not groups_t:
             return [], []
@@ -389,17 +389,15 @@ class GUIModule(QMainWindow):
         order = sorted(range(len(t_medians)), key=lambda i: t_medians[i])
         x_vals = [t_medians[i] for i in order]
         g = len(groups_t)
-        y_vals = list(range(g - 1, -1, -1))
+        step = float(T3W_X3_GROUP_SIZE)
+        y_vals = [step * float(k) for k in range(g - 1, -1, -1)]
         return x_vals, y_vals
 
     @staticmethod
     def _format_step_plot_time_label(t: float) -> str:
         if not math.isfinite(t):
             return str(t)
-        ax_abs = abs(t)
-        if ax_abs > 0 and (ax_abs >= 1e6 or ax_abs < 1e-4):
-            return f"{t:.6e}"
-        return f"{t:.6g}"
+        return f"{t:.2f}"
 
     def _build_t3w_grouped_step_canvas(
         self,
@@ -454,7 +452,7 @@ class GUIModule(QMainWindow):
         # Offset labels up and right so they clear the diamonds and the horizontal
         # post-step segments (which extend to the right from each marker).
         label_bbox = dict(
-            boxstyle="round,pad=0.28",
+            boxstyle="round,pad=0.22",
             facecolor="white",
             edgecolor="none",
             alpha=0.96,
@@ -463,11 +461,11 @@ class GUIModule(QMainWindow):
             ax.annotate(
                 self._format_step_plot_time_label(xv),
                 xy=(xv, yv),
-                xytext=(12, 10),
+                xytext=(12, 9),
                 textcoords="offset points",
                 ha="left",
                 va="bottom",
-                fontsize=8,
+                fontsize=6.5,
                 color="black",
                 zorder=6,
                 bbox=label_bbox,
@@ -480,7 +478,7 @@ class GUIModule(QMainWindow):
 
         ax.xaxis.set_major_formatter(ScalarFormatter(useMathText=False))
         ax.ticklabel_format(style="plain", axis="x", useOffset=False)
-        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        ax.yaxis.set_major_locator(MultipleLocator(T3W_X3_GROUP_SIZE))
 
         flat_t = [v for g in groups_t for v in g]
         if flat_t and min(flat_t) >= 0:
@@ -493,9 +491,10 @@ class GUIModule(QMainWindow):
                 ax.set_xscale("symlog", linthresh=max(min_nz * 10.0, 1e-6))
 
         ymin, ymax = min(y_vals), max(y_vals)
-        pad_y = 0.55
+        step_y = float(T3W_X3_GROUP_SIZE)
+        pad_y = 0.55 * step_y
         # Extra room above the top step so labels (offset upward in points) stay inside the axes.
-        ax.set_ylim(ymin - pad_y, ymax + pad_y + 0.5)
+        ax.set_ylim(ymin - pad_y, ymax + pad_y + 0.5 * step_y)
 
         for spine in ax.spines.values():
             spine.set_visible(True)
@@ -677,7 +676,7 @@ class GUIModule(QMainWindow):
                         step_canvas = self._build_t3w_grouped_step_canvas(
                             groups_t,
                             x_axis_label=x_axis_label,
-                            y_axis_label="Рівень кроку (цілі значення)",
+                            y_axis_label="Рівень кроку (групи по 25 значень X3)",
                             plot_title=(
                                 f"Групи по {T3W_X3_GROUP_SIZE} значень X3 — "
                                 "ступінчаста залежність (час → рівень, post-step)"
@@ -685,11 +684,19 @@ class GUIModule(QMainWindow):
                         )
                         plots_layout.addWidget(step_canvas)
                     stack_h = primary_canvas.minimumHeight()
+                    primary_canvas.setFixedHeight(stack_h)
+                    primary_canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
                     if step_canvas is not None:
-                        stack_h += plots_layout.spacing() + step_canvas.minimumHeight()
-                    table.setFixedHeight(stack_h)
-                    table.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+                        sh = step_canvas.minimumHeight()
+                        step_canvas.setFixedHeight(sh)
+                        step_canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+                        stack_h += plots_layout.spacing() + sh
+                    plots_host.setFixedHeight(stack_h)
+                    table.setMinimumHeight(stack_h)
+                    table.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
                     container_layout.addWidget(plots_host, 2)
+                    container_layout.setAlignment(table, Qt.AlignTop)
+                    container_layout.setAlignment(plots_host, Qt.AlignTop)
                 else:
                     container_layout.addWidget(primary_canvas, 2)
                 return container
@@ -761,7 +768,7 @@ class GUIModule(QMainWindow):
                         step_canvas = self._build_t3w_grouped_step_canvas(
                             groups_t,
                             x_axis_label=x_axis_label,
-                            y_axis_label="Рівень кроку (цілі значення)",
+                            y_axis_label="Рівень кроку (групи по 25 значень X3)",
                             plot_title=(
                                 f"Групи по {T3W_X3_GROUP_SIZE} значень X3 — "
                                 "ступінчаста залежність (час → рівень, post-step)"
@@ -769,11 +776,19 @@ class GUIModule(QMainWindow):
                         )
                         plots_layout.addWidget(step_canvas)
                     stack_h = primary_canvas.minimumHeight()
+                    primary_canvas.setFixedHeight(stack_h)
+                    primary_canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
                     if step_canvas is not None:
-                        stack_h += plots_layout.spacing() + step_canvas.minimumHeight()
-                    table.setFixedHeight(stack_h)
-                    table.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+                        sh = step_canvas.minimumHeight()
+                        step_canvas.setFixedHeight(sh)
+                        step_canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+                        stack_h += plots_layout.spacing() + sh
+                    plots_host.setFixedHeight(stack_h)
+                    table.setMinimumHeight(stack_h)
+                    table.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
                     container_layout.addWidget(plots_host, 2)
+                    container_layout.setAlignment(table, Qt.AlignTop)
+                    container_layout.setAlignment(plots_host, Qt.AlignTop)
                 else:
                     container_layout.addWidget(primary_canvas, 2)
                 return container
