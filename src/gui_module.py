@@ -539,6 +539,7 @@ class GUIModule(QMainWindow):
         y_axis_label: str = "Значення",
         plot_kind: str = "scatter",
         plot_title: str | None = None,
+        show_scatter_markers: bool = True,
     ) -> FigureCanvas:
         fig = Figure(figsize=(5.4, 3.3), dpi=120)
         ax = fig.add_subplot(111)
@@ -557,18 +558,19 @@ class GUIModule(QMainWindow):
                 height=0.82,
             )
         else:
-            # Trend line + points (matplotlib only; no seaborn dependency).
+            # Line; optional point markers (P_3W: line only).
             c = self._palette.accent
             ax.plot(x_values, y_values, color=c, lw=1.8, alpha=0.9, zorder=1)
-            ax.scatter(
-                x_values,
-                y_values,
-                color=c,
-                s=28,
-                alpha=0.95,
-                zorder=2,
-                edgecolors="none",
-            )
+            if show_scatter_markers:
+                ax.scatter(
+                    x_values,
+                    y_values,
+                    color=c,
+                    s=28,
+                    alpha=0.95,
+                    zorder=2,
+                    edgecolors="none",
+                )
         if plot_title:
             ax.set_title(plot_title, fontsize=9, pad=6)
         ax.set_facecolor(mcolors.to_rgba(self._palette.card_bg, alpha=0.34))
@@ -712,6 +714,7 @@ class GUIModule(QMainWindow):
                     x_axis_label=x_axis_label,
                     y_axis_label=y_axis_label,
                     plot_kind=plot_kind,
+                    show_scatter_markers=not is_p3w_metric,
                 )
                 if is_t3w_metric:
                     groups_t = self._t3w_batch_t_groups_from_pairs(t3w_pairs)
@@ -809,6 +812,7 @@ class GUIModule(QMainWindow):
                     x_axis_label=x_axis_label,
                     y_axis_label=y_axis_label,
                     plot_kind=plot_kind,
+                    show_scatter_markers=not is_p3w_metric,
                 )
                 if is_t3w_metric:
                     groups_t = self._t3w_batch_t_groups_from_pairs(t3w_pairs)
