@@ -82,7 +82,7 @@ class SolverModule:
             requested_plots = ["Q_3W", "a_3W"]
 
         num_plots = len(requested_plots)
-        t_vals = np.linspace(0.1, p.t, 1200)
+        t_vals = np.linspace(0.1, p.t_plot, 1200)
 
         def compute_curves(
             t_grid,

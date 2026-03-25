@@ -429,7 +429,7 @@ class SolverCalculator:
         min_value = self._fmt_number(min(values)) if values else "n/a"
         max_value = self._fmt_number(max(values)) if values else "n/a"
         steps = [
-            f"1) Задано параметри: t={self._fmt_number(p.t)}, a1={p.a1}, a2={p.a2}, a3={p.a3}, beta={self._fmt_number(p.beta)}.",
+            f"1) Задано параметри: t={self._fmt_number(p.t_display)}, a1={p.a1}, a2={p.a2}, a3={p.a3}, beta={self._fmt_number(p.beta)}.",
             f"2) Проміжний крок: N=a1*a2*a3={p.a1}*{p.a2}*{p.a3}={max_x3}.",
             f"3) Обчислення виконується для кожного x3: 0..{max_x3} (усього {len(values)} точок).",
             "4) Для кожного x3 спочатку рахується seed-внесок (мінімальні x1,x2), а потім повна подвійна сума по x1,x2.",
@@ -453,7 +453,7 @@ class SolverCalculator:
         r2 = math.exp(-p.lambda2 * p.t)
         r3 = math.exp(-((p.lambda3 * p.t) ** p.beta))
         return [
-            f"1) Підставлено в K_Г3W(k,t): k={p.k}, t={self._fmt_number(p.t)}.",
+            f"1) Підставлено в K_Г3W(k,t): k={p.k}, t={self._fmt_number(p.t_display)}.",
             f"2) Проміжний крок: N=a1*a2*a3={p.a1}*{p.a2}*{p.a3}={n_total}, поріг готовності k={p.k}.",
             f"3) Проміжні надійності рівнів у момент t: R0=exp(-lambda0*t)={self._fmt_number(r0)}, R1={self._fmt_number(r1)}, R2={self._fmt_number(r2)}, R3_Weibull={self._fmt_number(r3)}.",
             f"4) Після підстановки всіх параметрів у формулу отримано K_Г3W={self._fmt_number(result)}.",
@@ -527,7 +527,7 @@ class SolverCalculator:
         t_plus = p.t + dt
         actual_dt = t_plus - t_minus
         steps = [
-            f"1) Підставлено в a_3W(k,t): k={p.k}, t={self._fmt_number(p.t)}.",
+            f"1) Підставлено в a_3W(k,t): k={p.k}, t={self._fmt_number(p.t_display)}.",
             "2) Використано визначення a_3W(t)=dQ_3W/dt, де Q_3W(t)=1-K_Г3W(t).",
             f"3) Для стабільності похідну оцінено центральною різницею: [Q(t+dt)-Q(t-dt)]/(2*dt) з dt={self._fmt_number(dt)}.",
             f"4) Вузли похідної: t-dt={self._fmt_number(t_minus)}, t+dt={self._fmt_number(t_plus)}, фактичний крок={self._fmt_number(actual_dt)}.",

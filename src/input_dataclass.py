@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 @dataclass
 class InputData:
@@ -9,7 +10,8 @@ class InputData:
     a3: int
 
     k: int   # num. of total working components
-    t: float # hours 
+    # Canonical evaluation horizon for tasks 1–2 and cache signature (must stay stable for reuse).
+    t: float
 
     lambda0: float
     lambda1: float
@@ -19,6 +21,11 @@ class InputData:
     beta: float
 
     plots: list[str]
+
+    # Upper bound for tab 3 interactive curves (linspace); omitted → same as t (does not affect cache).
+    t_plot: Optional[float] = None
+    # Shown as "Час (t)" on tabs 1–2 and in exported report; omitted → same as t (does not affect cache).
+    t_display: Optional[float] = None
 
     def __post_init__(self) -> None:
         total_components = self.a1 * self.a2 * self.a3
@@ -38,6 +45,15 @@ class InputData:
 
         if self.t <= 0:
             raise ValueError("t must be positive.")
+
+        if self.t_plot is None:
+            self.t_plot = self.t
+        if self.t_display is None:
+            self.t_display = self.t
+        if self.t_plot <= 0:
+            raise ValueError("t_plot must be positive.")
+        if self.t_display <= 0:
+            raise ValueError("t_display must be positive.")
 
         for name in ("lambda0", "lambda1", "lambda2", "lambda3"):
             value = getattr(self, name)
@@ -78,7 +94,7 @@ var_15 = InputData(
     a3 = 9, #9
 
     k = 8,   # num. of total working components 8
-    t = 100.0, # hours 
+    t = 1000.0,  # cache / tasks 1–2
 
     lambda0 = 2e-3, # 1 / hours
     lambda1 = 3e-3, # 1 / hours
@@ -87,7 +103,9 @@ var_15 = InputData(
 
     beta = 1.2, #1.2
 
-    plots = ["a_3W", "lambda_3W"]
+    plots = ["a_3W", "lambda_3W"],
+    t_plot = 100.0,  # tab 3 time axis
+    t_display = 100.0,  # label on tabs 1–2 / report
 )
 
 var_16 = InputData(
@@ -118,6 +136,8 @@ var_17 = InputData(
     a1 = 4, a2 = 7, a3 = 9, # N = 252
     k = 200,
     t = 1000.0, 
+    t_display=100.0,
+    t_plot=310.0,
 
     # lambda0 має бути мінімальною, щоб не "притискати" весь графік до осі
     lambda0 = 1e-6, 

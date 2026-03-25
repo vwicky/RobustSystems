@@ -224,7 +224,7 @@ class GUIModule(QMainWindow):
             self._create_param_row("A", "Компоненти (a1, a2, a3)", f"{data.a1}, {data.a2}, {data.a3}")
         )
         params_layout.addWidget(self._create_param_row("K", "Мінімум справних (k)", str(data.k)))
-        params_layout.addWidget(self._create_param_row("T", "Час (t)", f"{data.t} год"))
+        params_layout.addWidget(self._create_param_row("T", "Час (t)", f"{data.t_display} год"))
         params_layout.addWidget(
             self._create_param_row("L", "Лямбда", f"{data.lambda0}, {data.lambda1}, {data.lambda2}, {data.lambda3}")
         )

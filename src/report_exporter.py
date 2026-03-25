@@ -89,7 +89,7 @@ def _input_rows(data: InputData) -> list[tuple[str, str]]:
         ("Variant ID", str(data.var_id)),
         ("a1, a2, a3", f"{data.a1}, {data.a2}, {data.a3}"),
         ("k", str(data.k)),
-        ("t", f"{data.t}"),
+        ("t", f"{data.t_display}"),
         ("lambda0", f"{data.lambda0}"),
         ("lambda1", f"{data.lambda1}"),
         ("lambda2", f"{data.lambda2}"),
