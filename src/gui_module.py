@@ -3,7 +3,10 @@ import math
 import statistics
 import textwrap
 
-import seaborn as sns
+import matplotlib
+
+matplotlib.use("Qt5Agg")
+
 from PyQt5.QtCore import QSettings, Qt
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtGui import QKeySequence
@@ -42,7 +45,7 @@ from src.report_exporter import export_report_bundle
 from src.solver_module import SolverModule
 
 # T_3W: secondary chart bins consecutive X3 indices into groups of this size (mean T & mean X3 per bin).
-T3W_X3_GROUP_SIZE = 25
+T3W_X3_GROUP_SIZE = 20
 
 METRIC_EXPLANATIONS_UA: dict[str, str] = {
     "P_3W": (
@@ -358,39 +361,60 @@ class GUIModule(QMainWindow):
             QMessageBox.critical(self, "Помилка експорту", str(exc))
 
     @staticmethod
-    def _bin_t3w_for_boxplot(
-        t_values: list[float],
-        x3_values: list[float],
+    def _t3w_pairs_from_cached_list(value: list | tuple) -> list[tuple[float, float]]:
+        """
+        (x3, T) pairs straight from T_3W cache: list index i is x3, value[i] is T_3W(x3).
+        Skips x3=0 (same as the table). Order is ascending x3 — no swap with plot arrays.
+        """
+        out: list[tuple[float, float]] = []
+        for i in range(1, len(value)):
+            t = GUIModule._to_numeric(value[i])
+            if t is not None:
+                out.append((float(i), float(t)))
+        return out
+
+    @staticmethod
+    def _t3w_pairs_from_cached_dict(value: dict) -> list[tuple[float, float]]:
+        """(x3, T) from a dict payload; sorted by x3 so batches match increasing X3."""
+        out: list[tuple[float, float]] = []
+        for k, v in value.items():
+            x3 = GUIModule._to_numeric(k)
+            t = GUIModule._to_numeric(v)
+            if x3 is None or t is None or x3 == 0.0:
+                continue
+            out.append((float(x3), float(t)))
+        out.sort(key=lambda p: p[0])
+        return out
+
+    @staticmethod
+    def _t3w_batch_t_groups_from_pairs(
+        pairs: list[tuple[float, float]],
         group_size: int = T3W_X3_GROUP_SIZE,
-    ) -> tuple[list[list[float]], list[float]]:
-        """Sort by X3; each group lists all T in that X3 block; centers_x3 = mean X3 per group (unused by step plot)."""
-        if len(t_values) != len(x3_values) or not t_values:
-            return [], []
-        pairs = sorted(zip(x3_values, t_values), key=lambda p: p[0])
+    ) -> list[list[float]]:
+        """Consecutive batches of `group_size` points in x3 order; each inner list is cached T values only."""
+        if not pairs:
+            return []
         groups_t: list[list[float]] = []
-        centers_x3: list[float] = []
         for i in range(0, len(pairs), group_size):
             chunk = pairs[i : i + group_size]
             groups_t.append([p[1] for p in chunk])
-            centers_x3.append(sum(p[0] for p in chunk) / len(chunk))
-        return groups_t, centers_x3
+        return groups_t
 
     @staticmethod
     def _t3w_step_series_from_groups(groups_t: list[list[float]]) -> tuple[list[float], list[float]]:
         """
-        One (time, level) per group: x = median(T) in group, sorted by time ascending;
-        y = (G-1, G-2, …, 0) × T3W_X3_GROUP_SIZE (25) — same as групи X3, decreasing along x.
+        One point per X3 batch in **increasing x3 order** (same as groups_t):
+        x = median(T), y = 0, step, 2·step, … so the **first** batch (lowest x3, like the bar chart bottom)
+        sits at **y = 0** and **later** batches sit **higher** — same vertical sense as «Значення X3» on the bar plot
+        (small x3 low on the page, large x3 high). Not sorted by time; the step can move backward in x between batches.
         """
         if not groups_t:
             return [], []
-        t_medians: list[float] = []
-        for g in groups_t:
-            t_medians.append(float(statistics.median(g)) if g else 0.0)
-        order = sorted(range(len(t_medians)), key=lambda i: t_medians[i])
-        x_vals = [t_medians[i] for i in order]
+        t_medians = [float(statistics.median(g)) if g else 0.0 for g in groups_t]
+        x_vals = t_medians
         g = len(groups_t)
         step = float(T3W_X3_GROUP_SIZE)
-        y_vals = [step * float(k) for k in range(g - 1, -1, -1)]
+        y_vals = [step * float(k) for k in range(g)]
         return x_vals, y_vals
 
     @staticmethod
@@ -406,7 +430,7 @@ class GUIModule(QMainWindow):
         y_axis_label: str,
         plot_title: str,
     ) -> FigureCanvas:
-        """Post-step plot: x = time (median T per group), y = decreasing integer rungs; black on white, no grid."""
+        """Post-step: x = median T per batch, y = 0, step, 2·step, … by x3-batch order; groups_t = T_3W_v2 slices."""
         fig = Figure(figsize=(5.6, 3.4), dpi=120)
         fig.patch.set_facecolor("white")
         ax = fig.add_subplot(111)
@@ -520,8 +544,9 @@ class GUIModule(QMainWindow):
         ax = fig.add_subplot(111)
         if plot_kind == "bars":
             # Function-like bars with swapped axes: x = mean time, y = x3.
-            bar_palette = sns.light_palette(self._palette.accent, n_colors=max(len(x_values), 2), reverse=False)
-            bar_colors = bar_palette[: len(x_values)]
+            bar_colors = self._light_bar_palette(self._palette.accent, max(len(x_values), 2))[
+                : len(x_values)
+            ]
             ax.barh(
                 y_values,
                 x_values,
@@ -532,9 +557,18 @@ class GUIModule(QMainWindow):
                 height=0.82,
             )
         else:
-            # Higher-quality tab plot: trend line + points.
-            sns.lineplot(x=x_values, y=y_values, ax=ax, color=self._palette.accent, lw=1.8, alpha=0.9)
-            sns.scatterplot(x=x_values, y=y_values, ax=ax, color=self._palette.accent, s=28, alpha=0.95, legend=False)
+            # Trend line + points (matplotlib only; no seaborn dependency).
+            c = self._palette.accent
+            ax.plot(x_values, y_values, color=c, lw=1.8, alpha=0.9, zorder=1)
+            ax.scatter(
+                x_values,
+                y_values,
+                color=c,
+                s=28,
+                alpha=0.95,
+                zorder=2,
+                edgecolors="none",
+            )
         if plot_title:
             ax.set_title(plot_title, fontsize=9, pad=6)
         ax.set_facecolor(mcolors.to_rgba(self._palette.card_bg, alpha=0.34))
@@ -572,6 +606,16 @@ class GUIModule(QMainWindow):
         canvas.setMinimumHeight(300 if plot_title else 310)
         canvas.setMinimumWidth(400)
         return canvas
+
+    @staticmethod
+    def _light_bar_palette(accent_hex: str, n_colors: int) -> list[tuple[float, float, float]]:
+        """Light → accent ramp (replaces seaborn.light_palette for horizontal bars)."""
+        n = max(int(n_colors), 2)
+        top = mcolors.to_rgb(accent_hex)
+        return [
+            tuple(1.0 - (1.0 - top[i]) * (j / (n - 1)) for i in range(3))
+            for j in range(n)
+        ]
 
     @staticmethod
     def _wrap_axis_label(label: str, width: int = 20) -> str:
@@ -644,8 +688,16 @@ class GUIModule(QMainWindow):
                 table.setMaximumHeight(280)
 
             if len(y_values) >= 2:
-                plot_x_values = y_values if is_t3w_metric else x_values
-                plot_y_values = x_values if is_t3w_metric else y_values
+                if is_t3w_metric:
+                    # Bar + stairs use the same (x3, T) series as T_3W_v2 cache: index → x3, value → T.
+                    t3w_pairs = self._t3w_pairs_from_cached_list(value)
+                    if len(t3w_pairs) < 2:
+                        return table
+                    plot_x_values = [p[1] for p in t3w_pairs]
+                    plot_y_values = [p[0] for p in t3w_pairs]
+                else:
+                    plot_x_values = x_values
+                    plot_y_values = y_values
                 x_axis_label = "Системний час роботи" if is_t3w_metric else default_x_axis_label
                 y_axis_label = "Значення X3" if is_t3w_metric else default_y_axis_label
                 plot_kind = "bars" if is_t3w_metric else "scatter"
@@ -662,9 +714,7 @@ class GUIModule(QMainWindow):
                     plot_kind=plot_kind,
                 )
                 if is_t3w_metric:
-                    groups_t, _ = self._bin_t3w_for_boxplot(
-                        plot_x_values, plot_y_values
-                    )
+                    groups_t = self._t3w_batch_t_groups_from_pairs(t3w_pairs)
                     plots_host = QWidget()
                     plots_layout = QVBoxLayout(plots_host)
                     plots_layout.setContentsMargins(0, 0, 0, 0)
@@ -675,10 +725,10 @@ class GUIModule(QMainWindow):
                         step_canvas = self._build_t3w_grouped_step_canvas(
                             groups_t,
                             x_axis_label=x_axis_label,
-                            y_axis_label="Рівень кроку (групи по 25 значень X3)",
+                            y_axis_label=f"Рівень кроку (групи по {T3W_X3_GROUP_SIZE} значень X3)",
                             plot_title=(
                                 f"Групи по {T3W_X3_GROUP_SIZE} значень X3 — "
-                                "ступінчаста залежність (час → рівень, post-step)"
+                                "ступінчаста залежність (групи X3 1→N, post-step)"
                             ),
                         )
                         plots_layout.addWidget(step_canvas)
@@ -735,8 +785,15 @@ class GUIModule(QMainWindow):
                 table.setMaximumHeight(280)
 
             if len(y_values) >= 2:
-                plot_x_values = y_values if is_t3w_metric else x_values
-                plot_y_values = x_values if is_t3w_metric else y_values
+                if is_t3w_metric:
+                    t3w_pairs = self._t3w_pairs_from_cached_dict(value)
+                    if len(t3w_pairs) < 2:
+                        return table
+                    plot_x_values = [p[1] for p in t3w_pairs]
+                    plot_y_values = [p[0] for p in t3w_pairs]
+                else:
+                    plot_x_values = x_values
+                    plot_y_values = y_values
                 x_axis_label = "Системний час роботи" if is_t3w_metric else default_x_axis_label
                 y_axis_label = "Значення X3" if is_t3w_metric else default_y_axis_label
                 plot_kind = "bars" if is_t3w_metric else "scatter"
@@ -748,15 +805,13 @@ class GUIModule(QMainWindow):
                 primary_canvas = self._build_plot_canvas(
                     plot_x_values,
                     plot_y_values,
-                    x_labels=x_labels,
+                    x_labels=x_labels if not is_t3w_metric else None,
                     x_axis_label=x_axis_label,
                     y_axis_label=y_axis_label,
                     plot_kind=plot_kind,
                 )
                 if is_t3w_metric:
-                    groups_t, _ = self._bin_t3w_for_boxplot(
-                        plot_x_values, plot_y_values
-                    )
+                    groups_t = self._t3w_batch_t_groups_from_pairs(t3w_pairs)
                     plots_host = QWidget()
                     plots_layout = QVBoxLayout(plots_host)
                     plots_layout.setContentsMargins(0, 0, 0, 0)
@@ -767,10 +822,10 @@ class GUIModule(QMainWindow):
                         step_canvas = self._build_t3w_grouped_step_canvas(
                             groups_t,
                             x_axis_label=x_axis_label,
-                            y_axis_label="Рівень кроку (групи по 25 значень X3)",
+                            y_axis_label=f"Рівень кроку (групи по {T3W_X3_GROUP_SIZE} значень X3)",
                             plot_title=(
                                 f"Групи по {T3W_X3_GROUP_SIZE} значень X3 — "
-                                "ступінчаста залежність (час → рівень, post-step)"
+                                "ступінчаста залежність (групи X3 1→N, post-step)"
                             ),
                         )
                         plots_layout.addWidget(step_canvas)

@@ -1,6 +1,13 @@
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
+
+# Use common system fonts only (avoid Qt resolving missing families like "SF Pro Text" / "Segoe UI" on macOS).
+if sys.platform == "darwin":
+    _UI_FONT_STACK = '"Helvetica Neue", Helvetica, Arial, sans-serif'
+else:
+    _UI_FONT_STACK = '"Segoe UI", "Helvetica Neue", Arial, sans-serif'
 
 
 @dataclass(frozen=True)
@@ -194,7 +201,7 @@ def rgba(hex_color: str, alpha: float) -> str:
 def build_stylesheet(theme_name: str) -> str:
     palette = get_theme_palette(theme_name)
     return f"""
-QWidget {{ background: {palette.app_bg}; font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; font-size: 14px; color: {palette.text}; }}
+QWidget {{ background: {palette.app_bg}; font-family: {_UI_FONT_STACK}; font-size: 14px; color: {palette.text}; }}
 QGroupBox {{ border: 1px solid {rgba(palette.border, 0.80)}; border-radius: 10px; margin-top: 14px; padding: 14px; background: {rgba(palette.card_bg, 0.72)}; font-weight: 600; }}
 QGroupBox::title {{ left: 8px; color: {palette.accent}; }}
 QPushButton {{ background: {palette.accent}; color: #FFFFFF; border: none; border-radius: 7px; padding: 9px 16px; font-weight: 600; }}
